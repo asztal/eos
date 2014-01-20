@@ -1,0 +1,16 @@
+{
+	"name": "eos",
+	"version": "0.0.1",
+	"author": "lee@asztal.net",
+	"description": "a truly asynchronous ODBC library for node.js",
+	"scripts": {
+	},
+	"keywords": [ "odbc", "async", "sql" ],
+	"main": "./lib/eos",
+	"dependencies": {
+	},
+	"devDependencies": {
+	},
+	"license": "MIT",
+	"engines": { "node": ">=0.10" }
+}
