@@ -4,7 +4,7 @@ namespace Eos {
     ClassInitializerRecord rootClassInitializer = { 0 };
 
     void RegisterClassInitializer(ClassInitializerRecord& newRecord) {
-        ClassInitializerRecord* rec = &rootClassInitializer;
+        auto rec = &rootClassInitializer;
         while (rec->next) 
             rec = rec->next; 
         rec->next = &newRecord;
@@ -17,7 +17,7 @@ namespace Eos {
     void Init(Handle<Object> exports) {
         EOS_DEBUG_METHOD();
 
-        ClassInitializerRecord* rec = &rootClassInitializer;
+        auto rec = &rootClassInitializer;
         while (rec = rec->next) {
             if (rec->Init)
                 rec->Init(exports);
@@ -59,6 +59,14 @@ namespace Eos {
 
         Handle<Value> args[] = { message };
         return odbcErrorConstructor->CallAsConstructor(1, args);
+    }
+
+    Local<Value> OdbcError(const char* message) {
+        return OdbcError(String::New(message));
+    }
+
+    Local<Value> OdbcError(const wchar_t* message) {
+        return OdbcError(String::New(reinterpret_cast<const uint16_t*>(message)));
     }
 
     Local<Value> OdbcError(Handle<String> message, Handle<String> state) {

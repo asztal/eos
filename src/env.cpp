@@ -1,4 +1,5 @@
 #include "env.hpp"
+#include "conn.hpp"
 
 using namespace Eos;
 
@@ -10,8 +11,10 @@ void Environment::Init(Handle<Object> exports) {
     ft->InstanceTemplate()->SetInternalFieldCount(1);
 
     // The exported constructor can only be called on values made by the internal constructor.
-    auto sig = Signature::New(ft);
-    auto exportedConstructor = FunctionTemplate::New(New, Handle<Value>(), sig);
+    auto sig0 = Signature::New(ft);
+
+    EOS_SET_METHOD(ft, "newConnection", Environment, NewConnection, sig0);
+    EOS_SET_METHOD(ft, "free", Environment, Free, sig0);
 
     exports->Set(String::NewSymbol("Environment"), ft->GetFunction(), ReadOnly);
 }
@@ -46,12 +49,37 @@ Handle<Value> Environment::New(const Arguments& args) {
     return scope.Close(args.Holder());
 }
 
-Environment::~Environment() {
-    EOS_DEBUG_METHOD();
+namespace {
+    Handle<Value> ThrowClosed() {
+        return ThrowException(Exception::Error(String::New("The environment has been closed.")));
+    }
 }
 
-Local<Value> Environment::GetLastError() {
-    return Eos::GetLastError(hEnv_);
+Handle<Value> Environment::NewConnection(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    if (!hEnv_)
+        return ThrowClosed();
+
+    Handle<Value> argv[1] = { handle_ };
+    return Connection::Constructor()->GetFunction()->NewInstance(1, argv);
+}
+
+// Frees the environment handle. This will fail with HY010 if there are still 
+// connection handles allocated to this environment. Closing an environment
+// twice is allowed.
+Handle<Value> Environment::Free(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    auto ret = hEnv_.Free();
+    if (!SQL_SUCCEEDED(ret))
+        return ThrowException(GetLastError());
+
+    return Undefined();
+}
+
+Environment::~Environment() {
+    EOS_DEBUG_METHOD();
 }
 
 Persistent<FunctionTemplate> Environment::constructor_;
