@@ -103,23 +103,154 @@ namespace Eos {
         SQLHANDLE handle_;
     };
 
-    template <class TOp>
-    struct Operation : ObjectWrap {
-        static void Init(Handle<Object> exports) {
+    struct IOperation : ObjectWrap {
+        virtual ~IOperation() {
             EOS_DEBUG_METHOD();
         }
 
-    private:
+        void Begin(bool isComplete = false) {
+            EOS_DEBUG_METHOD();
+            
+            auto ret = Call();
+
+            EOS_DEBUG(L"Result: %hi\n", ret);
+            
+            if (ret == SQL_STILL_EXECUTING) {
+                assert(!isComplete);
+                return;
+            }
+
+            if (!SQL_SUCCEEDED(ret)) {
+                TryCatch tc;
+                CallbackErrorOverride(ret);
+                if (tc.HasCaught())
+                    FatalException(tc);
+                return;
+            }
+        
+            TryCatch tc;
+            Callback(ret);
+            if (tc.HasCaught())
+                FatalException(tc);
+        }
+
+        SQLRETURN Call() {
+            return this->CallOverride();
+        }
+
+        void Callback(SQLRETURN ret) {
+            TryCatch tc;
+            this->CallbackOverride(ret);
+            if (tc.HasCaught())
+                FatalException(tc);
+        }
+
+        virtual void OnCompleted() = 0;
+
+    protected:
+        virtual SQLRETURN CallOverride() = 0;
+        virtual void CallbackOverride(SQLRETURN ret) = 0;
+        virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
+
+        Handle<Function> GetCallback() const {
+            return callback_;
+        }
+
+    protected:
         Persistent<Function> callback_;
-
-        static ClassInitializer<Operation<TOp> > classInitializer_;
     };
 
-    struct Connect : Operation<Connect> {
+    template <class TOwner, class TOp>
+    struct Operation : IOperation {
+        static void Init(Handle<Object> exports) {
+            EOS_DEBUG_METHOD();
+
+            constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
+            constructor_->SetClassName(String::NewSymbol(TOp::Name()));
+            constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+        }
+
+        Operation() { 
+            EOS_DEBUG_METHOD();
+        }
+
+        static Handle<Value> New(const Arguments& args) {
+            EOS_DEBUG_METHOD();
+            
+            HandleScope scope;
+
+            if (args.Length() < 2)
+                return scope.Close(ThrowError("Too few arguments"));
+
+            if (!args.IsConstructCall()) {
+                // XXX There must be a better way...
+                Handle<Value>* argv = new Handle<Value>[args.Length()];
+                for (int i = 0; i < args.Length(); i++)
+                    argv[i] = args[i];
+                auto ret = constructor_->GetFunction()->NewInstance(args.Length(), argv);
+                delete[] argv;
+                return ret;
+            }
+
+            if (!TOwner::Constructor()->HasInstance(args[0]))
+                return scope.Close(ThrowTypeError("Bad argument"));
+
+            if (!args[args.Length() - 1]->IsFunction())
+                return scope.Close(ThrowTypeError("Last argument should be a callback function"));
+
+            auto owner = ObjectWrap::Unwrap<TOwner>(args[0]->ToObject());
+
+            auto obj = TOp::New(owner, args);
+            if (obj->IsUndefined())
+                return obj;
+
+            assert(obj->IsObject());
+
+            TOp* op = ObjectWrap::Unwrap<TOp>(obj->ToObject());
+            op->owner_ = owner->handle_;
+            op->callback_ = Persistent<Function>::New(args[args.Length() - 1].As<Function>());
+            return obj;
+        };
+
+        static Handle<FunctionTemplate> Constructor() {
+            return constructor_;
+        }
+
+        TOwner* Owner() { return ObjectWrap::Unwrap<TOwner>(owner_); }
+
+        void OnCompleted() {
+            EOS_DEBUG_METHOD();
+
+            SQLRETURN ret;
+            SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
+            
+            TryCatch tc;
+            if (SQL_SUCCEEDED(ret))
+                CallbackOverride(ret);
+            else
+                CallbackErrorOverride(ret);
+            if (tc.HasCaught())
+                FatalException(tc);
+        }
+
+    protected:
+        void CallbackErrorOverride(SQLRETURN ret) {
+            Handle<Value> argv[] = { Owner()->GetLastError() };
+            GetCallback()->Call(Context::GetCurrent()->Global(), 1, argv);
+        }
 
     private:
+        Persistent<Object> owner_;
+        static Persistent<FunctionTemplate> constructor_;
     };
-    
+
+    struct INotify {
+        virtual void Notify() = 0;
+    };
+
+    HANDLE Wait(HANDLE hWaitHandle, INotify* target);
+    void Unwait(HANDLE hRegisteredWaitHandle);
+
     // Create an OdbcError with no SQLSTATE or sub-errors.
     Local<Value> OdbcError(Handle<String> message);
     Local<Value> OdbcError(const char* message);
@@ -127,6 +258,9 @@ namespace Eos {
 
     // Create an OdbcError with an SQLSTATE but no sub-errors.
     Local<Value> OdbcError(Handle<String> message, Handle<String> state);
+    
+    Handle<Value> ThrowError(const char* message);
+    Handle<Value> ThrowTypeError(const char* message);
 
     // Use SQLGetDiagRecW to return an OdbcError representing the last error which happened
     // for the given handle. The first error will be returned, but if there are multiple
@@ -159,7 +293,25 @@ namespace Eos {
             return scope.Close((obj->*F)(args));
         }
     };
+
+    struct WStringValue {
+        WStringValue(Handle<Value> value) : value(value) {}
+        SQLWCHAR* operator*() { return reinterpret_cast<SQLWCHAR*>(*value); }
+        const SQLWCHAR* operator*() const { return reinterpret_cast<const SQLWCHAR*>(*value); }
+        int length() const { return value.length(); }
+    
+    private:
+        // Disallow copying and assigning.
+        WStringValue(const WStringValue&);
+        void operator=(const WStringValue&);
+
+        String::Value value;
+    };
     
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
+
+    struct Environment;
+    struct Connection;
+    struct Statement;
 }
 

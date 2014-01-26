@@ -1,21 +1,20 @@
-var eos = require('./');
+var assert = require('assert')
+  , colors = require('colors')
+  , eos = require('./');
+
+var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
 
 try {
     var env = new eos.Environment();
-    console.log("env: ", env.constructor, env.constructor.name);
-
-    env.free();
-    env.free();
-
     var conn = env.newConnection();
-    console.log("conn: ", conn.constructor, conn.constructor.name);
 
-    var C = conn.constructor;
+    conn.connect(connectionString, function (err) {
+        console.log(err);
+        assert.ifError(err);
 
-    var conn2 = new C(env);
-    console.log("conn2: ", conn2.constructor, conn2.constructor.name);
-
+        console.log("WAT");
+    })
 
 } catch (e) {
-    console.log("ERROR", typeof e, e, e.constructor);
+    console.log((((e && e.constructor && e.constructor.name) || "Error") + ":").red.bold, e);
 }

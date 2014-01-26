@@ -1,4 +1,5 @@
 #include "eos.hpp"
+#include "uv.h"
 
 namespace Eos {
     ClassInitializerRecord rootClassInitializer = { 0 };
@@ -25,7 +26,99 @@ namespace Eos {
 
         InitError();
     }
-    
+
+#pragma region("Wait")
+    namespace {
+        int initCount = 0;
+        uv_async_t async;
+        uv_rwlock_t rwlock;
+        
+        struct Callback {
+            INotify* target;
+            Callback* next;
+
+            Callback(INotify* target) 
+                : target(target)
+                , next(0) 
+            { }
+        } *firstCallback = 0;
+
+        void ProcessCallbackQueue(uv_async_t*, int) {
+            EOS_DEBUG_METHOD();
+
+            uv_rwlock_rdlock(&rwlock);
+
+            assert(firstCallback);
+
+            while (firstCallback) {
+                firstCallback->target->Notify();
+                auto current = firstCallback;
+                firstCallback = firstCallback->next;
+                delete current;
+            }
+            
+            uv_rwlock_rdunlock(&rwlock);
+        }
+
+        void InitialiseWaiter() {
+            if (initCount == 0) {
+                EOS_DEBUG_METHOD();
+                uv_async_init(uv_default_loop(), &async, &ProcessCallbackQueue);
+                uv_rwlock_init(&rwlock);
+            } 
+
+            initCount++;
+        }
+
+        void DestroyWaiter() {
+            initCount--;
+
+            if (initCount == 0) {
+                EOS_DEBUG_METHOD();
+                uv_rwlock_destroy(&rwlock);
+                uv_close(reinterpret_cast<uv_handle_t*>(&async), nullptr);
+            }
+        }
+
+        void NTAPI WaitCallback(PVOID data, BOOLEAN timeout) {
+            EOS_DEBUG_METHOD();
+
+            if (timeout)
+                return;
+
+            uv_rwlock_wrlock(&rwlock);
+
+            // Enqueue this callback before the others (easier)
+            Callback* head = firstCallback;
+            firstCallback = new Callback(reinterpret_cast<INotify*>(data));
+            firstCallback->next = head;
+
+            uv_rwlock_wrunlock(&rwlock);
+
+            uv_async_send(&async);
+        }
+    }
+
+    HANDLE Wait(HANDLE hWaitHandle, INotify* notify) {
+        EOS_DEBUG_METHOD();
+        InitialiseWaiter();
+
+        HANDLE hRegisteredWaitHandle = nullptr;
+        if (!RegisterWaitForSingleObject(&hRegisteredWaitHandle, hWaitHandle, &WaitCallback, notify, INFINITE, WT_EXECUTEDEFAULT))
+            EOS_DEBUG(L"RegisterWaitForSingleObject failed\n");
+        
+        return hRegisteredWaitHandle;
+    }
+
+    void Unwait(HANDLE hRegisteredWaitHandle) {
+        EOS_DEBUG_METHOD();
+        if (!UnregisterWait(hRegisteredWaitHandle))
+            EOS_DEBUG(L"UnregisterWait failed\n");
+
+        DestroyWaiter();
+    }
+
+#pragma endregion
 
 #pragma region("OdbcError")
     namespace {
@@ -88,6 +181,14 @@ namespace Eos {
         return odbcErrorConstructor->CallAsConstructor(3, args);
     }
 #pragma endregion
+    
+    Handle<Value> ThrowError(const char* message) {
+        return ThrowException(Exception::Error(String::New(message)));
+    }
+
+    Handle<Value> ThrowTypeError(const char* message) {
+        return ThrowException(Exception::TypeError(String::New(message)));
+    }
 
     Local<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle) {
         EOS_DEBUG_METHOD();

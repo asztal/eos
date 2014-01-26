@@ -4,19 +4,18 @@
 using namespace Eos;
 
 void Environment::Init(Handle<Object> exports) {
-    auto ft = FunctionTemplate::New(New);
-    constructor_ = Persistent<FunctionTemplate>::New(ft);
+    constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
 
-    ft->SetClassName(String::NewSymbol("Environment"));
-    ft->InstanceTemplate()->SetInternalFieldCount(1);
+    constructor_->SetClassName(String::NewSymbol("Environment"));
+    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
 
     // The exported constructor can only be called on values made by the internal constructor.
-    auto sig0 = Signature::New(ft);
+    auto sig0 = Signature::New(constructor_);
 
-    EOS_SET_METHOD(ft, "newConnection", Environment, NewConnection, sig0);
-    EOS_SET_METHOD(ft, "free", Environment, Free, sig0);
+    EOS_SET_METHOD(constructor_, "newConnection", Environment, NewConnection, sig0);
+    EOS_SET_METHOD(constructor_, "free", Environment, Free, sig0);
 
-    exports->Set(String::NewSymbol("Environment"), ft->GetFunction(), ReadOnly);
+    exports->Set(String::NewSymbol("Environment"), constructor_->GetFunction(), ReadOnly);
 }
 
 Environment::Environment(SQLHENV hEnv) : hEnv_(hEnv) {
@@ -34,18 +33,16 @@ Handle<Value> Environment::New(const Arguments& args) {
     SQLHENV hEnv;
     auto ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
     if (!SQL_SUCCEEDED(ret))
-        return ThrowException(Exception::Error(String::New("Unable to allocate environment handle")));
+        return ThrowError("Unable to allocate environment handle");
     
     ret = SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3_80, SQL_IS_UINTEGER);
     if (!SQL_SUCCEEDED(ret)) {
-        Local<Value> exception = Eos::GetLastError(SQL_HANDLE_ENV, hEnv);
+        auto exception = Eos::GetLastError(SQL_HANDLE_ENV, hEnv);
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
         return ThrowException(exception);
     }
 
-    Environment* env = new Environment(hEnv);
-    env->Wrap(args.Holder());
-
+    (new Environment(hEnv))->Wrap(args.Holder());
     return scope.Close(args.Holder());
 }
 
