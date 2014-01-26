@@ -174,6 +174,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
+        template<size_t argc>
+        static Local<Object> Construct(Handle<Value> (&argv)[argc]) {
+            return Constructor()->GetFunction()->NewInstance(argc, argv); 
+        }
+
         static Handle<Value> New(const Arguments& args) {
             EOS_DEBUG_METHOD();
             
