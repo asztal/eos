@@ -18,6 +18,7 @@ namespace Eos {
         Handle<Value> Connect(const Arguments& args);
         Handle<Value> NewStatement(const Arguments& args);
         Handle<Value> Free(const Arguments& args);
+        Handle<Value> Disconnect(const Arguments& args);
 
     public:
         // Non-JS methods
@@ -26,12 +27,7 @@ namespace Eos {
         Local<Value> GetLastError() { return Eos::GetLastError(hDbc_); }
         static Persistent<FunctionTemplate> Constructor() { return constructor_; }
         IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(operation_); }
-        void Notify() {
-            EOS_DEBUG_METHOD();
-            // Do something, maybe
-            
-            Operation()->OnCompleted();
-        }
+        void Notify();
 
     private:
         Connection(const Connection&); // = delete;

@@ -5,8 +5,6 @@ using namespace Eos;
 
 namespace Eos {
     struct ConnectOperation : Operation<Connection, ConnectOperation> {
-        using Operation::Operation;
-
         ConnectOperation::ConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
         {
@@ -46,16 +44,40 @@ namespace Eos {
         void CallbackOverride(SQLRETURN ret) {
             EOS_DEBUG_METHOD();
 
-            GetCallback()->Call(Context::GetCurrent()->Global(), 0, 0);
+            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
         }
 
     protected:
         WStringValue connectionString_;
     };
+
+    struct DisconnectOperation: Operation<Connection, DisconnectOperation> {
+        static const char* Name() { return "DisconnectOperation"; }
+
+        static Handle<Value> New(Connection* owner, const Arguments& args) {
+            EOS_DEBUG_METHOD();
+
+            if (args.Length() < 2)
+                return ThrowError("Too few arguments");
+
+            (new DisconnectOperation())->Wrap(args.Holder());
+            return args.Holder();
+        }
+
+        SQLRETURN CallOverride() {
+            return SQLDisconnect(
+                Owner()->GetHandle());
+        }
+
+        void CallbackOverride(SQLRETURN ret) {
+            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
+        }
+    };
 }
 
 Persistent<FunctionTemplate> Connection::constructor_;
 Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
+Persistent<FunctionTemplate> Operation<Connection, DisconnectOperation>::constructor_;
 
 void Connection::Init(Handle<Object> exports)  {
     EOS_DEBUG_METHOD();
@@ -68,8 +90,10 @@ void Connection::Init(Handle<Object> exports)  {
     EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
     EOS_SET_METHOD(constructor_, "free", Connection, Free, sig0);
     EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
+    EOS_SET_METHOD(constructor_, "disconnect", Connection, Disconnect, sig0);
 
     ConnectOperation::Init(exports);
+    DisconnectOperation::Init(exports);
 }
 
 Connection::Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
@@ -163,7 +187,7 @@ Handle<Value> Connection::Connect(const Arguments& args) {
         return ThrowError("This connection has been freed.");
 
     Handle<Value> argv[] = { handle_, args[0], args[1] };
-    operation_ = Persistent<Object>::New(ConnectOperation::Constructor()->GetFunction()->NewInstance(3, argv));
+    operation_ = Persistent<Object>::New(ConnectOperation::Construct(argv));
     
     ObjectWrap::Unwrap<ConnectOperation>(operation_)->Begin();
 
@@ -175,6 +199,33 @@ Handle<Value> Connection::NewStatement(const Arguments& args) {
 
     Handle<Value> argv[1] = { handle_ };
     return Statement::Constructor()->GetFunction()->NewInstance(1, argv);
+}
+
+Handle<Value> Connection::Disconnect(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    if (args.Length() < 1)
+        return ThrowError("Connection::Disconnect() requires a callback");
+
+    if (!hDbc_)
+        return ThrowError("This connection has been freed.");
+
+    Handle<Value> argv[] = { handle_, args[0] };
+    operation_ = Persistent<Object>::New(DisconnectOperation::Construct(argv));
+    
+    ObjectWrap::Unwrap<DisconnectOperation>(operation_)->Begin();
+
+    return Undefined();
+}
+
+void Connection::Notify() {
+    EOS_DEBUG_METHOD();
+    
+    HandleScope scope;
+    Handle<Object> op = operation_;
+    operation_.Dispose();
+
+    ObjectWrap::Unwrap<IOperation>(op)->OnCompleted();
 }
 
 Handle<Value> Connection::Free(const Arguments& args) {

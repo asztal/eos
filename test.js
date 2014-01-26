@@ -4,7 +4,7 @@ var assert = require('assert')
 
 var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
 
-try {
+//try {
     var env = new eos.Environment();
     var conn = env.newConnection();
 
@@ -12,9 +12,13 @@ try {
         console.log(err);
         assert.ifError(err);
 
-        console.log("WAT");
-    })
+        conn.disconnect(function(err) {
+            console.log(err);
+            assert.ifError(err);
 
-} catch (e) {
-    console.log((((e && e.constructor && e.constructor.name) || "Error") + ":").red.bold, e);
-}
+            conn.free();
+        })
+    })
+//} catch (e) {
+//    console.log((((e && e.constructor && e.constructor.name) || "Error") + ":").red.bold, e);
+//}
