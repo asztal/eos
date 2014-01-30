@@ -1,6 +1,8 @@
 #include "eos.hpp"
 #include "uv.h"
 
+int EosMethodDebugger::depth = 0;
+
 namespace Eos {
     ClassInitializerRecord rootClassInitializer = { 0 };
 
@@ -257,9 +259,9 @@ namespace Eos {
             return scope.Close(OdbcError(resultMessage));
     }
 
-    Local<String> StringFromTChar(const SQLWCHAR* string) {
+    Local<String> StringFromTChar(const SQLWCHAR* string, int length) {
         HandleScope scope;
-        return scope.Close(String::New(reinterpret_cast<const uint16_t*>(string)));
+        return scope.Close(String::New(reinterpret_cast<const uint16_t*>(string), length));
     }
 }
 

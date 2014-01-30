@@ -19,9 +19,25 @@ using std::nothrow;
 #error Please #define UNICODE.
 #endif
 
+struct EosMethodDebugger {
+    EosMethodDebugger(const wchar_t* fn) {
+        for (int i = 0; i < depth; i++)
+            wprintf(L".");
+        wprintf(L"%s()\n", fn);
+        ++depth;
+    }
+
+    ~EosMethodDebugger() {
+        --depth;
+        assert(depth >= 0);
+    }
+private:
+    static int depth;
+};
+
 #if defined(DEBUG)
 #define EOS_DEBUG(...) wprintf(__VA_ARGS__)
-#define EOS_DEBUG_METHOD() wprintf(L" -> %s()\n", __FUNCTIONW__)
+#define EOS_DEBUG_METHOD() EosMethodDebugger __md__(__FUNCTIONW__); //wprintf(L" -> %s()\n", __FUNCTIONW__)
 #else
 #define EOS_DEBUG(...) void(0)
 #define EOS_DEBUG_METHOD() void(0)
@@ -149,7 +165,14 @@ namespace Eos {
 
     protected:
         virtual SQLRETURN CallOverride() = 0;
-        virtual void CallbackOverride(SQLRETURN ret) = 0;
+        
+        virtual void CallbackOverride(SQLRETURN ret) {
+            // Default implementation.
+            EOS_DEBUG_METHOD();
+
+            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
+        }
+        
         virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
 
         Handle<Function> GetCallback() const {
@@ -279,7 +302,7 @@ namespace Eos {
 
     // Do type hackery to cast from const SQLWCHAR* to const uint16_t* to please V8's 
     // String::New function.
-    Local<String> StringFromTChar(const SQLWCHAR* string);
+    Local<String> StringFromTChar(const SQLWCHAR* string, int length = -1);
 
     // Node's SetPrototypeMethod doesn't set a v8::Signature, which doesn't help debugging. Not
     // setting a Signature on a prototype method of an ObjectWrap class can result in segfault
@@ -314,6 +337,9 @@ namespace Eos {
     };
     
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
+
+    template <typename T> T min (const T& x, const T& y) { return x < y ? x : y; }
+    template <typename T> T max (const T& x, const T& y) { return x > y ? x : y; }
 
     struct Environment;
     struct Connection;

@@ -14,6 +14,7 @@ void Environment::Init(Handle<Object> exports) {
 
     EOS_SET_METHOD(constructor_, "newConnection", Environment, NewConnection, sig0);
     EOS_SET_METHOD(constructor_, "free", Environment, Free, sig0);
+    EOS_SET_METHOD(constructor_, "dataSources", Environment, DataSources, sig0);
 
     exports->Set(String::NewSymbol("Environment"), constructor_->GetFunction(), ReadOnly);
 }
@@ -60,6 +61,51 @@ Handle<Value> Environment::NewConnection(const Arguments& args) {
 
     Handle<Value> argv[1] = { handle_ };
     return Connection::Constructor()->GetFunction()->NewInstance(1, argv);
+}
+
+Handle<Value> Environment::DataSources(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    SQLUSMALLINT direction = SQL_FETCH_FIRST;
+
+    auto results = Array::New();
+
+    if (args.Length() > 0) {
+        Handle<String> type = args[0]->ToString();
+        if (type->Equals(String::New("user")))
+            direction = SQL_FETCH_FIRST_USER;
+        else if (type->Equals(String::New("system")))
+            direction = SQL_FETCH_FIRST_SYSTEM;
+        else
+            return ThrowError("The first argument must be 'system', 'user', or omitted");
+    }
+
+    uint32_t i = 0;
+    SQLRETURN ret;
+
+    wchar_t serverName[SQL_MAX_DSN_LENGTH + 1], description[256 + 1];
+    SQLSMALLINT serverNameLength, descriptionLength;
+
+    for(;;) {
+        ret = SQLDataSourcesW(
+            GetHandle(),
+            direction,
+            serverName, sizeof(serverName) / sizeof(wchar_t), &serverNameLength, // TODO not crash
+            description, sizeof(description) / sizeof(wchar_t), &descriptionLength);
+    
+        if (ret == SQL_NO_DATA)
+            return results;
+
+        if (ret == SQL_ERROR)
+            return ThrowException(GetLastError());
+
+        auto item = Object::New();
+        item->Set(String::NewSymbol("server"), StringFromTChar(serverName, min(sizeof(serverName) / sizeof(wchar_t), (size_t)serverNameLength)));
+        item->Set(String::NewSymbol("description"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
+        results->Set(i++, item);
+
+        direction = SQL_FETCH_NEXT;
+    }
 }
 
 // Frees the environment handle. This will fail with HY010 if there are still 
