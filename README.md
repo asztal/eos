@@ -73,7 +73,7 @@ Errors returned from the ODBC driver manager or the ODBC driver will be an insta
 
 ODBC errors look something like this:
 
-```json
+```js
 { message: '[Microsoft][ODBC Driver Manager] Data source name not found and no default driver specified',
   state: 'IM002',
   errors:
@@ -110,7 +110,7 @@ Wrap **`SQLDataSources`**. Enumerates available data sources. `type` can be any 
  * _(omitted)_: lists all user and system DSNs.
 
 The data sources are returned as { server, description } pairs, e.g.
-```json
+```js
 [ { server: 'Products',
     description: 'Microsoft ODBC for Oracle' },
   { server: 'Customers',
