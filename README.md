@@ -65,7 +65,7 @@ Currently Eos uses only the notification method, but will be extended to support
    Environment.dataSources([type])
  * Callback parameters are declared as: Connection.connect(connectionString, callback([err], arg1, [arg2]))
    A parenthesised argument list follows the callback name, with square brackets for optional arguments as usual. All callbacks in Eos take an _error_ parameter as the first argument, which will be undefined when there is no error. Many callbacks take only an _error_ parameter, in which case the argument list here is omitted and the _error_ parameter is implied.
- * ODBC API calls are referred to with bold code tags, e.g. **`SQLExecDirect`**.
+ * ODBC API calls are referred in bold, e.g. **SQLExecDirect**.
 
 ### Error Handling
 
@@ -91,19 +91,19 @@ An `Environment` is a wrapper around a `SQLHENV` which is used to enumerate driv
 sources, and to allocate new connections. There may be many environments allocated at any one
 time. 
 
-The **`SQLEndTran`** operation is deliberately unimplemented, as it does not work when any connection has asynchronous execution enabled.
+The **SQLEndTran** operation is deliberately unimplemented, as it does not work when any connection has asynchronous execution enabled.
 
 ### new Environment()
 
-Wraps **`SQLAllocHandle`**. Creates a new ODBC environment handle and wraps it in a JavaScript object.
+Wraps **SQLAllocHandle**. Creates a new ODBC environment handle and wraps it in a JavaScript object.
 
 ### Environment.newConnection() _(synchronous)_
 
-Wraps **`SQLAllocHandle`**. Creates a new `Connection` in the current environment. The new connection will initially be disconnected.
+Wraps **SQLAllocHandle**. Creates a new `Connection` in the current environment. The new connection will initially be disconnected.
 
 ### Environment.dataSources([type]) _(synchronous)_
 
-Wrap **`SQLDataSources`**. Enumerates available data sources. `type` can be any of the following:
+Wrap **SQLDataSources**. Enumerates available data sources. `type` can be any of the following:
 
  * `"user"` lists all user DSNs.
  * `"system"` lists all system DSNs.
@@ -119,13 +119,93 @@ The data sources are returned as { server, description } pairs, e.g.
 
 The `server` property may be used as a DSN for `Connection.browseConnect`.
 
+### Environment.drivers()
+
+Wraps **SQLDrivers**. Enumerates available ODBC drivers. These could be used to build a connection
+string using **SQLBrowseConnect**. Example output:
+
+```js
+[ { description: 'Microsoft Access Text Driver (*.\u0000',
+    attributes:
+     [ 'UsageCount=3',
+       'APILevel=1',
+       'ConnectFunctions=YYN',
+       'DriverODBCVer=02.50',
+       'FileUsage=2',
+       'FileExtns=*.txt, *.csv',
+       'SQLLevel=0',
+       'CPTimeout=<not pooled>' ] },
+  { description: 'SQL Server Native Client 11.0',
+    attributes:
+     [ 'UsageCount=1',
+       'APILevel=2',
+       'ConnectFunctions=YYY',
+       'CPTimeout=60',
+       'DriverODBCVer=03.80',
+       'FileUsage=0',
+       'SQLLevel=1' ] },
+  { description: 'SQL Server Native Client 10.0',
+    attributes:
+     [ 'UsageCount=1',
+       'APILevel=2',
+       'ConnectFunctions=YYY',
+       'CPTimeout=60',
+       'DriverODBCVer=10.00',
+       'FileUsage=0',
+       'SQLLevel=1' ] },
+  { description: 'ODBC Driver 11 for SQL Server',
+    attributes:
+     [ 'UsageCount=1',
+       'APILevel=2',
+       'ConnectFunctions=YYY',
+       'CPTimeout=60',
+       'DriverODBCVer=03.80',
+       'FileUsage=0',
+       'SQLLevel=1' ] } ]
+```
+
+The following information about data source names can be found in _(Access Database Design & Programming, Steven Roman, O'Reilly Media, Inc., 7 Jan 2002, p.398)_.
+
+#### DriverODBCVer
+
+The ODBC version of the driver. The ODBC version of the application and the driver need not match exactly &mdash; the Driver Manager will translate as necessary. See the [Compatibility Matrix](http://msdn.microsoft.com/en-us/library/ms709305%28v=vs.85%29.aspx) for more details.
+
+#### ConnectFunctions
+
+A string of three Ys or Ns.
+
+ * The first Y or N declares support for **SQLConnect**.
+ * The second Y or N declare support for **SQLDriverConnect**.
+ * The third Y or N declares support for **SQLBrowseConnect**.
+ 
+E.g. the Microsoft Access Text Driver does not support **SQLBrowseConnect**.
+
+#### FileUsage
+
+|FileUsage||
+|-|-|
+|0|Not file based|
+|1|Files are treated as tables|
+|2|Files are treated as databases|
+
+#### SQLLevel 
+
+My limited research has been able to determine that the following values for _SQLLevel_ are possible:
+
+|SQLLevel||
+|-|-|
+|0|Basic SQL-92 Compliance|
+|1|FIPS127-2 Transitional|
+|2|SQL-92 Intermediate|
+|3|SQL-92 Full|
+
 ### Environment.free() _(synchronous)_
 
 Destroys the environment handle.
 
-### TODO
+### BUGS
 
-* Wrap **`SQLDrivers`** to enumerate available drivers.
+**SQLDrivers** may truncate driver names.
 
 ## Connection
 
@@ -134,7 +214,7 @@ statements to execute.
 
 ### Connection.connect(connectionString, callback)
 
-Wraps **`SQLDriverConnect`**. Takes a complete connection string and connects to it. If any required connection string parameters are missing, the operation will fail.
+Wraps **SQLDriverConnect**. Takes a complete connection string and connects to it. If any required connection string parameters are missing, the operation will fail.
 
 ### Connection.newStatement() _(synchronous)_
 
