@@ -14,6 +14,7 @@ namespace Eos {
         // JS methods
         Handle<Value> NewConnection(const Arguments& args);
         Handle<Value> DataSources(const Arguments& args);
+        Handle<Value> Drivers(const Arguments& args);
         Handle<Value> Free(const Arguments& args);
 
     public:
