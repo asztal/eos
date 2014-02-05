@@ -16,6 +16,7 @@ namespace Eos {
         // JS methods
         static Handle<Value> New(const Arguments& args);
         Handle<Value> Connect(const Arguments& args);
+        Handle<Value> BrowseConnect(const Arguments& args);
         Handle<Value> NewStatement(const Arguments& args);
         Handle<Value> Free(const Arguments& args);
         Handle<Value> Disconnect(const Arguments& args);

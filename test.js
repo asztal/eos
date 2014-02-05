@@ -16,11 +16,19 @@ d.on("error", function (e) {
 d.run(function() {
     var env = new eos.Environment();
 
-    console.log("\x1b[33m", env.dataSources(), "\x1b[;1m");
-    return;
-
     var conn = env.newConnection();
 
+    conn.browseConnect("DRIVER={ODBC Driver 11 for SQL Server}", function (err, more, outConnStr) {
+        if (err) {
+            console.log(err);
+            return;
+        }
+
+        console.log(outConnStr);
+
+    });
+
+    return;
     conn.connect(connectionString, d.bind(function (err) {
         log(err);
         assert.ifError(err);

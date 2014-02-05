@@ -129,7 +129,7 @@ namespace Eos {
             
             auto ret = Call();
 
-            EOS_DEBUG(L"Result: %hi\n", ret);
+            EOS_DEBUG(L"Immediate Result: %hi\n", ret);
             
             if (ret == SQL_STILL_EXECUTING) {
                 assert(!isComplete);
@@ -253,10 +253,10 @@ namespace Eos {
             SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
             
             TryCatch tc;
-            if (SQL_SUCCEEDED(ret))
+            //if (SQL_SUCCEEDED(ret))
                 CallbackOverride(ret);
-            else
-                CallbackErrorOverride(ret);
+            //else
+            //    CallbackErrorOverride(ret);
             if (tc.HasCaught())
                 FatalException(tc);
         }

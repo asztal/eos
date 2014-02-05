@@ -119,8 +119,8 @@ Handle<Value> Environment::Drivers(const Arguments& args) {
     uint32_t i = 0;
     SQLRETURN ret;
 
-    const int maxAttributesLength = 4096;
-    wchar_t description[SQL_MAX_DSN_LENGTH + 1], driverAttributes[maxAttributesLength + 1];
+    const int maxDescriptionLength = 4096, maxAttributesLength = 4096;
+    wchar_t description[maxDescriptionLength + 1], driverAttributes[maxAttributesLength + 1];
     SQLSMALLINT descriptionLength, driverAttributesLength;
 
     for(;;) {

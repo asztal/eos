@@ -172,7 +172,7 @@ The ODBC version of the driver. The ODBC version of the application and the driv
 
 #### ConnectFunctions
 
-A string of three Ys or Ns.
+A string of three Ys or Ns. If not specified, NNN should be assumed[*]().
 
  * The first Y or N declares support for **SQLConnect**.
  * The second Y or N declare support for **SQLDriverConnect**.
@@ -203,18 +203,52 @@ My limited research has been able to determine that the following values for _SQ
 
 Destroys the environment handle.
 
-### BUGS
-
-**SQLDrivers** may truncate driver names.
-
 ## Connection
 
-A `Connection` a wrapper around a `SQLHDBC` which is used to connect to data sources and create
-statements to execute.
+A `Connection` is a wrapper around a `SQLHDBC` which is used to connect to data sources and create
+statements to execute. A connection may be in one of five states once allocated:
+
+|State||
+|-|-|
+|C2|Allocated|
+|C3|Connecting via `browseConnect` (need more data)|
+|C4|Connected|
+|C5|Connected, allocated statement|
+|C6|Connected, in transaction|
 
 ### Connection.connect(connectionString, callback)
 
-Wraps **SQLDriverConnect**. Takes a complete connection string and connects to it. If any required connection string parameters are missing, the operation will fail.
+Wraps **SQLDriverConnect**. Takes a complete connection string and connects to it. If any required
+connection string parameters are missing, the operation will fail.
+
+### Connection.browseConnect(inConnectionString, callback([err], more, outConnectionString))
+
+Wraps **SQLBrowseConnect**. Iteratively connects to a data source, requesting more and more 
+information until the connection string is complete. The ODBC driver requests more information
+by returning a new connection string, _outConnectionString_ (also referred to as the _browse 
+result connection string_) which contains information about which parameters (_keywords_) can
+be supplied, which are required and optional, possible values (if there is a restricted choice),
+and user-friendly keyword labels.
+
+_inConnectionString_ should initially be a connection string with only the *DRIVER* or *DSN* 
+keyword set.
+
+When the callback is called with _more_ is set to `true`, more data is required to complete 
+the connection. There two cases: either further information is needed, or the data filled in
+in the last call was invalid (e.g. an incorrect password). The browse result connection string
+should be parsed, and the required missing values filled in. Once the values are filled in,
+`browseConnect` should be called again with the new connection string as the _inConnectionString_
+parameter.
+
+When the callback is called with _more_ set to `false`, the connection is connected. The
+connection string _outConnectionString_ is complete and can be used as a parameter to a future
+call to `connect()`, bypassing the `browseConnect` process.
+
+If an error (_err_) occurs, the connection is reset to the disconnected state. 
+
+To cancel a `browseConnect` operation, call `disconnect()`.
+
+This function is not supported when connection pooling is enabled.
 
 ### Connection.newStatement() _(synchronous)_
 
