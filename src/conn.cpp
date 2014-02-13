@@ -3,131 +3,7 @@
 
 using namespace Eos;
 
-namespace Eos {
-    struct ConnectOperation : Operation<Connection, ConnectOperation> {
-        ConnectOperation::ConnectOperation(Handle<Value> connectionString)
-            : connectionString_(connectionString)
-        {
-            EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"Connection string: %s\n", *connectionString_);
-        }
-
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
-            EOS_DEBUG_METHOD();
-
-            if (args.Length() < 3)
-                return ThrowError("Too few arguments");
-
-            if (!args[1]->IsString())
-                return ThrowTypeError("Connection string should be a string");
-
-            (new ConnectOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
-        }
-
-        static const char* Name() { return "ConnectOperation"; }
-
-    protected:
-        SQLRETURN CallOverride() {
-            EOS_DEBUG_METHOD();
-
-            SQLSMALLINT cchCompleted; // Don't care
-
-            return SQLDriverConnectW(
-                Owner()->GetHandle(), 
-                SQL_NULL_HANDLE,
-                *connectionString_, connectionString_.length(),
-                nullptr, 0, &cchCompleted,
-                SQL_DRIVER_NOPROMPT);
-        }
-
-    protected:
-        WStringValue connectionString_;
-    };
-
-    struct BrowseConnectOperation : Operation<Connection, BrowseConnectOperation> {
-        BrowseConnectOperation::BrowseConnectOperation(Handle<Value> connectionString)
-            : connectionString_(connectionString)
-        {
-            EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"Connection string: %s\n", *connectionString_);
-        }
-
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
-            EOS_DEBUG_METHOD();
-
-            if (args.Length() < 3)
-                return ThrowError("Too few arguments");
-
-            if (!args[1]->IsString())
-                return ThrowTypeError("Connection string should be a string");
-
-            (new BrowseConnectOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
-        }
-
-        static const char* Name() { return "BrowseConnectOperation"; }
-
-    protected:
-        SQLRETURN CallOverride() {
-            EOS_DEBUG_METHOD();
-
-            return SQLBrowseConnectW(
-                Owner()->GetHandle(), 
-                *connectionString_, connectionString_.length(),
-                outConnectionString_, outConnectionStringBufferLength, &outConnectionStringLength_);
-        }
-
-        void CallbackOverride(SQLRETURN ret) {
-            EOS_DEBUG_METHOD();
-
-            if (!SQL_SUCCEEDED(ret) && ret != SQL_NEED_DATA)
-                return CallbackErrorOverride(ret);
-
-            EOS_DEBUG(L"Final Result: %hi\n", ret);
-
-            Handle<Value> argv[] = { 
-                Undefined(),
-                ret == SQL_NEED_DATA ? True() : False(),
-                StringFromTChar(outConnectionString_, min(outConnectionStringLength_, (SQLSMALLINT)outConnectionStringBufferLength)) 
-            };
-
-            EOS_DEBUG(L"Result: %i, %s\n", ret, outConnectionString_);
-            
-            GetCallback()->Call(Context::GetCurrent()->Global(), 3, argv);
-        }
-
-    protected:
-        WStringValue connectionString_;
-        enum { outConnectionStringBufferLength = 4096 };
-        wchar_t outConnectionString_[outConnectionStringBufferLength + 1];
-        SQLSMALLINT outConnectionStringLength_;
-    };
-
-    struct DisconnectOperation: Operation<Connection, DisconnectOperation> {
-        static const char* Name() { return "DisconnectOperation"; }
-
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
-            EOS_DEBUG_METHOD();
-
-            if (args.Length() < 2)
-                return ThrowError("Too few arguments");
-
-            (new DisconnectOperation())->Wrap(args.Holder());
-            return args.Holder();
-        }
-
-        SQLRETURN CallOverride() {
-            return SQLDisconnect(
-                Owner()->GetHandle());
-        }
-    };
-}
-
 Persistent<FunctionTemplate> Connection::constructor_;
-Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
-Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_;
-Persistent<FunctionTemplate> Operation<Connection, DisconnectOperation>::constructor_;
 
 void Connection::Init(Handle<Object> exports)  {
     EOS_DEBUG_METHOD();
@@ -142,10 +18,6 @@ void Connection::Init(Handle<Object> exports)  {
     EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
     EOS_SET_METHOD(constructor_, "browseConnect", Connection, BrowseConnect, sig0);
     EOS_SET_METHOD(constructor_, "disconnect", Connection, Disconnect, sig0);
-    
-    ConnectOperation::Init(exports);
-    BrowseConnectOperation::Init(exports);
-    DisconnectOperation::Init(exports);
 }
 
 Connection::Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
@@ -229,62 +101,11 @@ Handle<Value> Connection::New(const Arguments& args) {
     return scope.Close(args.Holder());
 }
 
-Handle<Value> Connection::Connect(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    if (args.Length() < 2)
-        return ThrowError("Connection::Connect() requires 2 arguments");
-
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
-    operation_ = Persistent<Object>::New(ConnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<ConnectOperation>(operation_)->Begin();
-
-    return Undefined();
-}
-
-Handle<Value> Connection::BrowseConnect(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    if (args.Length() < 2)
-        return ThrowError("Connection::BrowseConnect() requires 2 arguments");
-
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
-    operation_ = Persistent<Object>::New(BrowseConnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<BrowseConnectOperation>(operation_)->Begin();
-
-    return Undefined();
-}
-
 Handle<Value> Connection::NewStatement(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
     Handle<Value> argv[1] = { handle_ };
     return Statement::Constructor()->GetFunction()->NewInstance(1, argv);
-}
-
-Handle<Value> Connection::Disconnect(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    if (args.Length() < 1)
-        return ThrowError("Connection::Disconnect() requires a callback");
-
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
-    Handle<Value> argv[] = { handle_, args[0] };
-    operation_ = Persistent<Object>::New(DisconnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<DisconnectOperation>(operation_)->Begin();
-
-    return Undefined();
 }
 
 void Connection::Notify() {

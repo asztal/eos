@@ -6,6 +6,9 @@
         'src/eos.hpp', 'src/eos.cpp',
         'src/env.hpp', 'src/env.cpp',
         'src/conn.hpp', 'src/conn.cpp',
+            'src/conn.connect.cpp',
+            'src/conn.disconnect.cpp',
+            'src/conn.browseConnect.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
         'src/result.hpp', 'src/result.cpp'
       ],
