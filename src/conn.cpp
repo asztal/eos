@@ -41,12 +41,6 @@ namespace Eos {
                 SQL_DRIVER_NOPROMPT);
         }
 
-        void CallbackOverride(SQLRETURN ret) {
-            EOS_DEBUG_METHOD();
-
-            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
-        }
-
     protected:
         WStringValue connectionString_;
     };
@@ -94,7 +88,7 @@ namespace Eos {
 
             Handle<Value> argv[] = { 
                 Undefined(),
-                needData_ ? True() : False(),
+                ret == SQL_NEED_DATA ? True() : False(),
                 StringFromTChar(outConnectionString_, min(outConnectionStringLength_, (SQLSMALLINT)outConnectionStringBufferLength)) 
             };
 
@@ -108,7 +102,6 @@ namespace Eos {
         enum { outConnectionStringBufferLength = 4096 };
         wchar_t outConnectionString_[outConnectionStringBufferLength + 1];
         SQLSMALLINT outConnectionStringLength_;
-        bool needData_;
     };
 
     struct DisconnectOperation: Operation<Connection, DisconnectOperation> {
@@ -127,10 +120,6 @@ namespace Eos {
         SQLRETURN CallOverride() {
             return SQLDisconnect(
                 Owner()->GetHandle());
-        }
-
-        void CallbackOverride(SQLRETURN ret) {
-            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
         }
     };
 }

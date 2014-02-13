@@ -169,6 +169,9 @@ namespace Eos {
         virtual void CallbackOverride(SQLRETURN ret) {
             // Default implementation.
             EOS_DEBUG_METHOD();
+            
+            if (!SQL_SUCCEEDED(ret))
+                return CallbackErrorOverride(ret);
 
             GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
         }
@@ -253,10 +256,7 @@ namespace Eos {
             SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
             
             TryCatch tc;
-            //if (SQL_SUCCEEDED(ret))
-                CallbackOverride(ret);
-            //else
-            //    CallbackErrorOverride(ret);
+            CallbackOverride(ret);
             if (tc.HasCaught())
                 FatalException(tc);
         }
