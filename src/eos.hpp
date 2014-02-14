@@ -69,56 +69,6 @@ namespace Eos {
         ClassInitializerRecord rec;
     };
 
-    // SQLHANDLE wrapper to disallow assigning between different types of handles
-    template <SQLSMALLINT HandleType>
-    struct ODBCHandle {
-        ODBCHandle(const SQLHANDLE handle) 
-            : handle_(handle)
-        { }
-
-        SQLRETURN Free() {
-            // Allow freeing a handle before its time (i.e. explicitly freeing
-            // the object from JS.)
-            SQLRETURN ret = SQL_SUCCESS;
-            if (handle_ != SQL_NULL_HANDLE) {
-                ret = SQLFreeHandle(HandleType, handle_);
-                if (SQL_SUCCEEDED(ret))
-                    handle_ = SQL_NULL_HANDLE;
-            } else {
-                handle_ = SQL_NULL_HANDLE;
-            }
-            return ret;
-        }
-
-        operator bool() const {
-            return handle_ != SQL_NULL_HANDLE;
-        }
-
-        bool operator!() const {
-            return handle_ == SQL_NULL_HANDLE;
-        }
-
-        friend bool operator == (ODBCHandle<HandleType> lhs, ODBCHandle<HandleType> rhs) {
-            return lhs.handle_ == rhs.handle_;
-        }
-
-        friend bool operator != (ODBCHandle<HandleType> lhs, ODBCHandle<HandleType> rhs) {
-            return lhs.handle_ != rhs.handle_;
-        }
-
-        ~ODBCHandle() {
-            Free();
-        }
-
-        SQLHANDLE Value() const { return handle_; }
-
-    private:
-        // No copy constructor (who would free it?)
-        ODBCHandle::ODBCHandle(const ODBCHandle<HandleType>& other);
-
-        SQLHANDLE handle_;
-    };
-
     struct IOperation : ObjectWrap {
         virtual ~IOperation() {
             EOS_DEBUG_METHOD();
@@ -274,10 +224,14 @@ namespace Eos {
 
     struct INotify {
         virtual void Notify() = 0;
+        virtual HANDLE GetEventHandle() const = 0;
+        virtual HANDLE GetWaitHandle() const = 0;
+
+        virtual void Ref() = 0;
+        virtual void Unref() = 0;
     };
 
-    HANDLE Wait(HANDLE hWaitHandle, INotify* target);
-    void Unwait(HANDLE hRegisteredWaitHandle);
+    HANDLE Wait(INotify* target);
 
     // Create an OdbcError with no SQLSTATE or sub-errors.
     Local<Value> OdbcError(Handle<String> message);
@@ -294,11 +248,6 @@ namespace Eos {
     // for the given handle. The first error will be returned, but if there are multiple
     // errors they will be accessible via the OdbcError.prototype.errors property.
     Local<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle);
-
-    template<SQLSMALLINT HandleType>
-    Local<Value> GetLastError(const ODBCHandle<HandleType>& handle) {
-        return GetLastError(HandleType, handle.Value());
-    }
 
     // Do type hackery to cast from const SQLWCHAR* to const uint16_t* to please V8's 
     // String::New function.

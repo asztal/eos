@@ -30,7 +30,7 @@ namespace Eos {
     }
 
 #pragma region("Wait")
-    namespace {
+    namespace Async {
         int initCount = 0;
         uv_async_t async;
         uv_rwlock_t rwlock;
@@ -45,22 +45,7 @@ namespace Eos {
             { }
         } *firstCallback = 0;
 
-        void ProcessCallbackQueue(uv_async_t*, int) {
-            EOS_DEBUG_METHOD();
-
-            uv_rwlock_rdlock(&rwlock);
-
-            assert(firstCallback);
-
-            while (firstCallback) {
-                firstCallback->target->Notify();
-                auto current = firstCallback;
-                firstCallback = firstCallback->next;
-                delete current;
-            }
-            
-            uv_rwlock_rdunlock(&rwlock);
-        }
+        void ProcessCallbackQueue(uv_async_t*, int);
 
         void InitialiseWaiter() {
             if (initCount == 0) {
@@ -82,6 +67,50 @@ namespace Eos {
             }
         }
 
+        void ProcessCallbackQueue(uv_async_t*, int) {
+            EOS_DEBUG_METHOD();
+
+            uv_rwlock_rdlock(&rwlock);
+
+            assert(firstCallback);
+
+            while (firstCallback) {
+                uv_rwlock_rdunlock(&rwlock);
+
+                assert(firstCallback->target);
+                
+                auto fc = firstCallback; 
+                auto ic = initCount;
+                
+                HANDLE hWait = firstCallback->target->GetWaitHandle();
+
+                firstCallback->target->Notify();
+                firstCallback->target->Unref();
+
+                if (UnregisterWait(hWait))
+                    DestroyWaiter();
+                else 
+                    EOS_DEBUG(L"UnregisterWait failed\n");
+
+                // If initCount is zero, the last callback must have been called,
+                // so firstCallback->next should be nullptr, and we don't need to
+                // lock the lock since it will have been destroyed
+                if (!initCount) {
+                    assert(!firstCallback->next && "*Must* have been the last callback in the queue if initCount is 0");
+                    return; 
+                }
+
+                uv_rwlock_rdlock(&rwlock);
+
+                auto current = firstCallback;
+                firstCallback = firstCallback->next;
+                delete current;
+            }
+            
+            assert(initCount);
+            uv_rwlock_rdunlock(&rwlock);
+        }
+
         void NTAPI WaitCallback(PVOID data, BOOLEAN timeout) {
             EOS_DEBUG_METHOD();
 
@@ -101,23 +130,27 @@ namespace Eos {
         }
     }
 
-    HANDLE Wait(HANDLE hWaitHandle, INotify* notify) {
+    HANDLE Wait(INotify* notify) {
         EOS_DEBUG_METHOD();
-        InitialiseWaiter();
+        Async::InitialiseWaiter();
 
         HANDLE hRegisteredWaitHandle = nullptr;
-        if (!RegisterWaitForSingleObject(&hRegisteredWaitHandle, hWaitHandle, &WaitCallback, notify, INFINITE, WT_EXECUTEDEFAULT))
+        if (RegisterWaitForSingleObject(&hRegisteredWaitHandle, notify->GetEventHandle(), &Async::WaitCallback, notify, INFINITE, WT_EXECUTEDEFAULT))
+            notify->Ref();
+        else
             EOS_DEBUG(L"RegisterWaitForSingleObject failed\n");
         
         return hRegisteredWaitHandle;
     }
 
-    void Unwait(HANDLE hRegisteredWaitHandle) {
+    void Unwait(HANDLE& hRegisteredWaitHandle) {
         EOS_DEBUG_METHOD();
-        if (!UnregisterWait(hRegisteredWaitHandle))
+        if (UnregisterWait(hRegisteredWaitHandle)) {
+            Async::DestroyWaiter();
+            hRegisteredWaitHandle = nullptr;
+        } else {
             EOS_DEBUG(L"UnregisterWait failed\n");
-
-        DestroyWaiter();
+        }
     }
 
 #pragma endregion
@@ -228,7 +261,7 @@ namespace Eos {
             auto ret = SQLGetDiagRecW(
                 handleType,
                 handle, 
-                i + 1,
+                static_cast<SQLSMALLINT>(i + 1), // Shut up cast warning
                 state, 
                 nullptr,
                 message, 

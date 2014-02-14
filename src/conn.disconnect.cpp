@@ -2,7 +2,7 @@
 
 using namespace Eos;
 
-namespace {
+namespace Eos {
     struct DisconnectOperation: Operation<Connection, DisconnectOperation> {
         static const char* Name() { return "DisconnectOperation"; }
 
@@ -29,15 +29,8 @@ Handle<Value> Connection::Disconnect(const Arguments& args) {
     if (args.Length() < 1)
         return ThrowError("Connection::Disconnect() requires a callback");
 
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
     Handle<Value> argv[] = { handle_, args[0] };
-    operation_ = Persistent<Object>::New(DisconnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<DisconnectOperation>(operation_)->Begin();
-
-    return Undefined();
+    return Begin<DisconnectOperation>(argv);
 }
 
 Persistent<FunctionTemplate> Operation<Connection, DisconnectOperation>::constructor_;

@@ -2,7 +2,7 @@
 
 using namespace Eos;
 
-namespace {
+namespace Eos {
     struct ConnectOperation : Operation<Connection, ConnectOperation> {
         ConnectOperation::ConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
@@ -51,15 +51,8 @@ Handle<Value> Connection::Connect(const Arguments& args) {
     if (args.Length() < 2)
         return ThrowError("Connection::Connect() requires 2 arguments");
 
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
     Handle<Value> argv[] = { handle_, args[0], args[1] };
-    operation_ = Persistent<Object>::New(ConnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<ConnectOperation>(operation_)->Begin();
-
-    return Undefined();
+    return Begin<ConnectOperation>(argv);
 }
 
 Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;

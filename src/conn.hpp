@@ -2,9 +2,10 @@
 
 #include "eos.hpp"
 #include "env.hpp"
+#include "handle.hpp"
 
 namespace Eos {
-    struct Connection : ObjectWrap, INotify {
+    struct Connection : EosHandle {
         static void Init(Handle<Object> exports);
 
         Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent); 
@@ -18,26 +19,14 @@ namespace Eos {
         Handle<Value> Connect(const Arguments& args);
         Handle<Value> BrowseConnect(const Arguments& args);
         Handle<Value> NewStatement(const Arguments& args);
-        Handle<Value> Free(const Arguments& args);
         Handle<Value> Disconnect(const Arguments& args);
 
     public:
         // Non-JS methods
-        SQLHDBC GetHandle() const { return hDbc_.Value(); }
-        HANDLE GetWaitHandle() const { return hEvent_; }
-        Local<Value> GetLastError() { return Eos::GetLastError(hDbc_); }
         static Persistent<FunctionTemplate> Constructor() { return constructor_; }
-        IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(operation_); }
-        void Notify();
 
     private:
-        Connection(const Connection&); // = delete;
-
         Environment* environment_;
-        HANDLE hEvent_, hWait_;
-        Persistent<Object> operation_;
-        ODBCHandle<SQL_HANDLE_DBC> hDbc_;
-
         static Persistent<FunctionTemplate> constructor_;
     };
 }

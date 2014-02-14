@@ -4,10 +4,7 @@
 using namespace Eos;
 
 void Environment::Init(Handle<Object> exports) {
-    constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
-
-    constructor_->SetClassName(String::NewSymbol("Environment"));
-    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+    EosHandle::Init("Environment", constructor_, New);
 
     // The exported constructor can only be called on values made by the internal constructor.
     auto sig0 = Signature::New(constructor_);
@@ -15,12 +12,13 @@ void Environment::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "newConnection", Environment, NewConnection, sig0);
     EOS_SET_METHOD(constructor_, "dataSources", Environment, DataSources, sig0);
     EOS_SET_METHOD(constructor_, "drivers", Environment, Drivers, sig0);
-    EOS_SET_METHOD(constructor_, "free", Environment, Free, sig0);
 
     exports->Set(String::NewSymbol("Environment"), constructor_->GetFunction(), ReadOnly);
 }
 
-Environment::Environment(SQLHENV hEnv) : hEnv_(hEnv) {
+Environment::Environment(SQLHENV hEnv) 
+    : EosHandle(SQL_HANDLE_ENV, hEnv, nullptr) 
+{
     EOS_DEBUG_METHOD();
 }
 
@@ -50,14 +48,14 @@ Handle<Value> Environment::New(const Arguments& args) {
 
 namespace {
     Handle<Value> ThrowClosed() {
-        return ThrowException(Exception::Error(String::New("The environment has been closed.")));
+        return ThrowException(OdbcError("The environment has been closed."));
     }
 }
 
 Handle<Value> Environment::NewConnection(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
-    if (!hEnv_)
+    if (!IsValid())
         return ThrowClosed();
 
     Handle<Value> argv[1] = { handle_ };
@@ -156,19 +154,6 @@ Handle<Value> Environment::Drivers(const Arguments& args) {
 
         direction = SQL_FETCH_NEXT;
     }
-}
-
-// Frees the environment handle. This will fail with HY010 if there are still 
-// connection handles allocated to this environment. Closing an environment
-// twice is allowed.
-Handle<Value> Environment::Free(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    auto ret = hEnv_.Free();
-    if (!SQL_SUCCEEDED(ret))
-        return ThrowException(GetLastError());
-
-    return Undefined();
 }
 
 Environment::~Environment() {

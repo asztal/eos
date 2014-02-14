@@ -2,7 +2,7 @@
 
 using namespace Eos;
 
-namespace {
+namespace Eos {
     struct BrowseConnectOperation : Operation<Connection, BrowseConnectOperation> {
         BrowseConnectOperation::BrowseConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
@@ -69,15 +69,8 @@ Handle<Value> Connection::BrowseConnect(const Arguments& args) {
     if (args.Length() < 2)
         return ThrowError("Connection::BrowseConnect() requires 2 arguments");
 
-    if (!hDbc_)
-        return ThrowError("This connection has been freed.");
-
     Handle<Value> argv[] = { handle_, args[0], args[1] };
-    operation_ = Persistent<Object>::New(BrowseConnectOperation::Construct(argv));
-    
-    ObjectWrap::Unwrap<BrowseConnectOperation>(operation_)->Begin();
-
-    return Undefined();
+    return Begin<BrowseConnectOperation>(argv);
 }
 
 Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_;

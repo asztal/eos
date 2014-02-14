@@ -1,9 +1,10 @@
 #pragma once 
 
 #include "eos.hpp"
+#include "handle.hpp"
 
 namespace Eos {
-    struct Environment: ObjectWrap {
+    struct Environment: EosHandle {
         Environment(SQLHENV hEnv);
         ~Environment();
 
@@ -15,19 +16,12 @@ namespace Eos {
         Handle<Value> NewConnection(const Arguments& args);
         Handle<Value> DataSources(const Arguments& args);
         Handle<Value> Drivers(const Arguments& args);
-        Handle<Value> Free(const Arguments& args);
 
     public:
         // Non-JS methods
-        SQLHENV GetHandle() const { return hEnv_.Value(); }
-        Local<Value> GetLastError() { return Eos::GetLastError(hEnv_); }
         static Persistent<FunctionTemplate> Constructor() { return constructor_; }
 
     private:
-        Environment::Environment(const Environment&); // = delete
-
-        ODBCHandle<SQL_HANDLE_ENV> hEnv_;
-
         static Persistent<FunctionTemplate> constructor_;
     };
 }

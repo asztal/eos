@@ -8,13 +8,10 @@ Persistent<FunctionTemplate> Connection::constructor_;
 void Connection::Init(Handle<Object> exports)  {
     EOS_DEBUG_METHOD();
 
-    constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
-    constructor_->SetClassName(String::NewSymbol("Connection"));
-    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+    EosHandle::Init("Connection", constructor_, New);
 
     auto sig0 = Signature::New(constructor_);
     EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
-    EOS_SET_METHOD(constructor_, "free", Connection, Free, sig0);
     EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
     EOS_SET_METHOD(constructor_, "browseConnect", Connection, BrowseConnect, sig0);
     EOS_SET_METHOD(constructor_, "disconnect", Connection, Disconnect, sig0);
@@ -22,22 +19,12 @@ void Connection::Init(Handle<Object> exports)  {
 
 Connection::Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
     : environment_(environment)
-    , hDbc_(hDbc)
-    , hEvent_(hEvent)
+    , EosHandle(SQL_HANDLE_DBC, hDbc, hEvent)
 {
     EOS_DEBUG_METHOD();
-
-    hWait_ = Eos::Wait(GetWaitHandle(), this);
 }
 
 Connection::~Connection() {
-    if (hEvent_) {
-        Eos::Unwait(hWait_);
-        CloseHandle(hEvent_);
-        hWait_ = nullptr;
-        hEvent_ = nullptr;
-    }
-
     EOS_DEBUG_METHOD();
 }
 
@@ -106,33 +93,6 @@ Handle<Value> Connection::NewStatement(const Arguments& args) {
 
     Handle<Value> argv[1] = { handle_ };
     return Statement::Constructor()->GetFunction()->NewInstance(1, argv);
-}
-
-void Connection::Notify() {
-    EOS_DEBUG_METHOD();
-    
-    HandleScope scope;
-    Handle<Object> op = operation_;
-    operation_.Dispose();
-
-    ObjectWrap::Unwrap<IOperation>(op)->OnCompleted();
-}
-
-Handle<Value> Connection::Free(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    auto ret = hDbc_.Free();
-    if (!SQL_SUCCEEDED(ret))
-        return ThrowException(GetLastError());
-
-    if (hEvent_) {
-        Eos::Unwait(hWait_);
-        CloseHandle(hEvent_);
-        hEvent_ = nullptr;
-        hWait_ = nullptr;
-    }
-
-    return Undefined();
 }
 
 namespace { ClassInitializer<Connection> ci; }

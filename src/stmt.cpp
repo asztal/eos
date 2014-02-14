@@ -7,9 +7,10 @@ Persistent<FunctionTemplate> Statement::constructor_;
 void Statement::Init(Handle<Object> exports) {
     EOS_DEBUG_METHOD();
 
-    constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
-    constructor_->SetClassName(String::NewSymbol("Statement"));
-    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+    EosHandle::Init("Statement", constructor_, New);
+    
+    auto sig0 = Signature::New(constructor_);
+    EOS_SET_METHOD(constructor_, "execDirect", Statement, ExecDirect, sig0);
 }
 
 Handle<Value> Statement::New(const Arguments& args) {
@@ -36,23 +37,19 @@ Handle<Value> Statement::New(const Arguments& args) {
     if (!SQL_SUCCEEDED(ret))
         return ThrowException(conn->GetLastError());
 
-    (new Statement(hStmt, conn))->Wrap(args.Holder());
+    auto hEvent = CreateEventW(nullptr, false, false, nullptr);
+    if (!hEvent) {
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+        return scope.Close(ThrowError("Unable to create wait handle"));
+    }
+
+    (new Statement(hStmt, conn, hEvent))->Wrap(args.Holder());
 
     return scope.Close(args.Holder());
 }
 
-Handle<Value> Statement::Free(const Arguments& args) {
-    EOS_DEBUG_METHOD();
-
-    auto ret = hStmt_.Free();
-    if (!SQL_SUCCEEDED(ret))
-        return ThrowException(GetLastError());
-
-    return Undefined();
-}
-
-Statement::Statement(SQLHSTMT hStmt, Connection* conn) 
-    : hStmt_(hStmt)
+Statement::Statement(SQLHSTMT hStmt, Connection* conn, HANDLE hEvent) 
+    : EosHandle(SQL_HANDLE_STMT, hStmt, hEvent)
     , connection_(conn)
 {
     EOS_DEBUG_METHOD();
