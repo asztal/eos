@@ -17,6 +17,7 @@ namespace Eos {
 
         static Handle<Value> New(const Arguments& args);
         Handle<Value> ExecDirect(const Arguments& args);
+        Handle<Value> Fetch(const Arguments& args);
 
     public:
 

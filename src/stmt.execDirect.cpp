@@ -48,7 +48,7 @@ namespace Eos {
                 ret == SQL_NEED_DATA ? True() : False()
             };
 
-            EOS_DEBUG(L"Result: %i, %s\n", ret, sql_);
+            EOS_DEBUG(L"Result: %i\n", ret);
             
             GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
         }

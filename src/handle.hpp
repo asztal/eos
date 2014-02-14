@@ -34,14 +34,23 @@ namespace Eos {
                 return ThrowError("This handle is already busy.");
 
             operation_ = Persistent<Object>::New(TOp::Construct(argv).As<Object>());
+            if (operation_.IsEmpty())
+                return operation_; // Probably the constructor threw
 
-            hWait_ = Eos::Wait(this);
-            if (!hWait_) {
-                operation_.Dispose();
-                return ThrowException(OdbcError("Unable to begin asynchronous operation"));
-            }
+            bool completedSynchronously = 
+                ObjectWrap::Unwrap<TOp>(operation_)->Begin();
 
-            ObjectWrap::Unwrap<TOp>(operation_)->Begin();
+            // Only register a wait if it did not complete synchronously
+            // It should be safe to register the wait even if the event is already signalled.
+            if (!completedSynchronously) {
+                EOS_DEBUG(L"Executing asynchronously\n");
+                hWait_ = Eos::Wait(this);
+                if (!hWait_) {
+                    operation_.Dispose();
+                    return ThrowException(OdbcError("Unable to begin asynchronous operation"));
+                }
+            } else 
+                EOS_DEBUG(L"Completed synchronously\n");
             
             return Undefined();
         }

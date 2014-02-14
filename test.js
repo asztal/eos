@@ -18,17 +18,6 @@ d.run(function() {
 
     var conn = env.newConnection();
 
-    conn.browseConnect("DRIVER={ODBC Driver 11 for SQL Server}", function (err, more, outConnStr) {
-        if (err) {
-            console.log(err);
-            return;
-        }
-
-        console.log(outConnStr);
-
-    });
-
-    return;
     conn.connect(connectionString, d.bind(function (err) {
         log(err);
         assert.ifError(err);
@@ -36,11 +25,18 @@ d.run(function() {
         var stmt = conn.newStatement();
         log(stmt);
 
-        conn.disconnect(d.bind(function (err) {
+        stmt.execDirect("declare @x int", d.bind(function (err) {
             log(err);
             assert.ifError(err);
 
-            conn.free();
+            stmt.fetch(d.bind(function (err) {
+                conn.disconnect(d.bind(function (err) {
+                    log(err);
+                    assert.ifError(err);
+
+                    conn.free();
+                }));
+            }));
         }));
     }));
 });

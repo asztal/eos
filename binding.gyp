@@ -12,6 +12,7 @@
           'src/conn.browseConnect.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
           'src/stmt.execDirect.cpp',
+          'src/stmt.fetch.cpp',
         'src/result.hpp', 'src/result.cpp'
       ],
       'defines' : [

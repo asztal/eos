@@ -74,7 +74,8 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        void Begin(bool isComplete = false) {
+        // Returns true if the operation completed synchronously.
+        bool Begin(bool isComplete = false) {
             EOS_DEBUG_METHOD();
             
             auto ret = Call();
@@ -83,21 +84,11 @@ namespace Eos {
             
             if (ret == SQL_STILL_EXECUTING) {
                 assert(!isComplete);
-                return;
-            }
-
-            if (!SQL_SUCCEEDED(ret)) {
-                TryCatch tc;
-                CallbackErrorOverride(ret);
-                if (tc.HasCaught())
-                    FatalException(tc);
-                return;
+                return false; // Asynchronous
             }
         
-            TryCatch tc;
             Callback(ret);
-            if (tc.HasCaught())
-                FatalException(tc);
+            return true; // Synchronous
         }
 
         SQLRETURN Call() {
