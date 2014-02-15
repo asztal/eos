@@ -8,7 +8,7 @@ namespace Eos {
             : connectionString_(connectionString)
         {
             EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"Connection string: %s\n", *connectionString_);
+            EOS_DEBUG(L"Connection string: %ls\n", *connectionString_);
         }
 
         static Handle<Value> New(Connection* owner, const Arguments& args) {

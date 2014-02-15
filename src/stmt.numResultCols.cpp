@@ -3,8 +3,8 @@
 using namespace Eos;
 
 namespace Eos {
-    struct FetchOperation : Operation<Statement, FetchOperation> {
-        FetchOperation::FetchOperation() {
+    struct NumResultColsOperation : Operation<Statement, NumResultColsOperation> {
+        NumResultColsOperation::NumResultColsOperation() {
             EOS_DEBUG_METHOD();
         }
 
@@ -14,47 +14,51 @@ namespace Eos {
             if (args.Length() < 1)
                 return ThrowError("Too few arguments");
 
-            (new FetchOperation())->Wrap(args.Holder());
+            (new NumResultColsOperation())->Wrap(args.Holder());
             return args.Holder();
         }
 
         void CallbackOverride(SQLRETURN ret) {
             EOS_DEBUG_METHOD();
 
-            if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA)
+            if (!SQL_SUCCEEDED(ret))
                 return CallbackErrorOverride(ret);
 
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
                 Undefined(),
-                ret == SQL_NO_DATA ? False() : True()
+                Integer::New(columnCount_)
             };
             
             GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
         }
 
-        static const char* Name() { return "FetchOperation"; }
+        static const char* Name() { return "NumResultColsOperation"; }
 
     protected:
         SQLRETURN CallOverride() {
             EOS_DEBUG_METHOD();
 
-            return SQLFetch(
-                Owner()->GetHandle());
+            return SQLNumResultCols(
+                Owner()->GetHandle(),
+                &columnCount_);
         }
+
+    private:
+        SQLSMALLINT columnCount_;
     };
 }
 
-Handle<Value> Statement::Fetch(const Arguments& args) {
+Handle<Value> Statement::NumResultCols(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Statement::Fetch() requires a callback");
+        return ThrowError("Statement::NumResultCols() requires a callback");
 
     Handle<Value> argv[] = { handle_, args[0] };
-    return Begin<FetchOperation>(argv);
+    return Begin<NumResultColsOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, FetchOperation>::constructor_;
-namespace { ClassInitializer<FetchOperation> ci; }
+Persistent<FunctionTemplate> Operation<Statement, NumResultColsOperation>::constructor_;
+namespace { ClassInitializer<NumResultColsOperation> ci; }

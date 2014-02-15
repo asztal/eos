@@ -13,8 +13,8 @@ namespace Eos {
         IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(operation_); }
 
         // INotify
-        void INotify::Ref() { EOS_DEBUG_METHOD(); ObjectWrap::Ref(); }
-        void INotify::Unref() { EOS_DEBUG_METHOD(); ObjectWrap::Unref(); }
+        void INotify::Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Ref(); }
+        void INotify::Unref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Unref(); }
         HANDLE /*INotify::*/GetEventHandle() const { return hEvent_; } // Including interface name gives strange IntelliSense errors
         HANDLE /*INotify::*/GetWaitHandle() const { return hWait_; } 
         void INotify::Notify();
@@ -43,14 +43,14 @@ namespace Eos {
             // Only register a wait if it did not complete synchronously
             // It should be safe to register the wait even if the event is already signalled.
             if (!completedSynchronously) {
-                EOS_DEBUG(L"Executing asynchronously\n");
+                EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
                 hWait_ = Eos::Wait(this);
                 if (!hWait_) {
                     operation_.Dispose();
                     return ThrowException(OdbcError("Unable to begin asynchronous operation"));
                 }
             } else 
-                EOS_DEBUG(L"Completed synchronously\n");
+                EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
             
             return Undefined();
         }

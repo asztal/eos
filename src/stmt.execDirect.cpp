@@ -8,7 +8,7 @@ namespace Eos {
             : sql_(sql)
         {
             EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"execDirect: %s\n", *sql_);
+            EOS_DEBUG(L"execDirect: %ls\n", *sql_);
         }
 
         static Handle<Value> New(Statement* owner, const Arguments& args) {
@@ -47,8 +47,6 @@ namespace Eos {
                 Undefined(),
                 ret == SQL_NEED_DATA ? True() : False()
             };
-
-            EOS_DEBUG(L"Result: %i\n", ret);
             
             GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
         }

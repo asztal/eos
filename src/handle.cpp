@@ -8,11 +8,11 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle, HANDLE hEve
     , hEvent_(hEvent)
     , hWait_(nullptr)
 {
-    EOS_DEBUG_METHOD();
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType);
 }
 
 EosHandle::~EosHandle() {
-    EOS_DEBUG_METHOD();
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
 
     FreeHandle();
 
@@ -39,7 +39,7 @@ void EosHandle::Init ( const char* className
 }
 
 void EosHandle::Notify() {
-    EOS_DEBUG_METHOD();
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
     
     HandleScope scope;
     Handle<Object> op = operation_;
@@ -50,7 +50,7 @@ void EosHandle::Notify() {
 }
 
 Handle<Value> EosHandle::Free(const Arguments& args) {
-    EOS_DEBUG_METHOD();
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
 
     auto ret = FreeHandle();
     if (!SQL_SUCCEEDED(ret))
@@ -60,6 +60,8 @@ Handle<Value> EosHandle::Free(const Arguments& args) {
 }
 
 SQLRETURN EosHandle::FreeHandle() {
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
+
     if (!IsValid())
         return SQL_SUCCESS_WITH_INFO;
 

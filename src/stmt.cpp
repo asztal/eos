@@ -12,6 +12,8 @@ void Statement::Init(Handle<Object> exports) {
     auto sig0 = Signature::New(constructor_);
     EOS_SET_METHOD(constructor_, "execDirect", Statement, ExecDirect, sig0);
     EOS_SET_METHOD(constructor_, "fetch", Statement, Fetch, sig0);
+    EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
+    EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
 }
 
 Handle<Value> Statement::New(const Arguments& args) {

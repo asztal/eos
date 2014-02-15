@@ -8,7 +8,7 @@ namespace Eos {
             : connectionString_(connectionString)
         {
             EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"Connection string: %s\n", *connectionString_);
+            EOS_DEBUG(L"Connection string: %ls\n", *connectionString_);
         }
 
         static Handle<Value> New(Connection* owner, const Arguments& args) {
@@ -50,7 +50,7 @@ namespace Eos {
                 StringFromTChar(outConnectionString_, min(outConnectionStringLength_, (SQLSMALLINT)outConnectionStringBufferLength)) 
             };
 
-            EOS_DEBUG(L"Result: %i, %s\n", ret, outConnectionString_);
+            EOS_DEBUG(L"Result: %i, %ls\n", ret, outConnectionString_);
             
             GetCallback()->Call(Context::GetCurrent()->Global(), 3, argv);
         }

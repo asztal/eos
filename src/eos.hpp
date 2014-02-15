@@ -20,10 +20,13 @@ using std::nothrow;
 #endif
 
 struct EosMethodDebugger {
-    EosMethodDebugger(const wchar_t* fn) {
+    EosMethodDebugger(const wchar_t* fmt, ...) {
         for (int i = 0; i < depth; i++)
             wprintf(L".");
-        wprintf(L"%s()\n", fn);
+        va_list argp;
+        va_start(argp, fmt);
+        vwprintf(fmt, argp);
+        va_end(argp);
         ++depth;
     }
 
@@ -36,11 +39,17 @@ private:
 };
 
 #if defined(DEBUG)
+// Not about %s: Microsoft Visual C++ and GNU libc treat %s differently in wprintf.
+// The safest method is to use %ls for wide strings, and %hs for narrow strings, and
+// to avoid using %s at all.
+// See http://en.chys.info/2009/06/wprintfs/ for more information.
 #define EOS_DEBUG(...) wprintf(__VA_ARGS__)
-#define EOS_DEBUG_METHOD() EosMethodDebugger __md__(__FUNCTIONW__); //wprintf(L" -> %s()\n", __FUNCTIONW__)
+#define EOS_DEBUG_METHOD(...) EosMethodDebugger __md__(__FUNCTIONW__ L"()\n"); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
+#define EOS_DEBUG_METHOD_FMT(fmt, ...) EosMethodDebugger __md__(__FUNCTIONW__ L"(" fmt L")\n", __VA_ARGS__); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
 #else
 #define EOS_DEBUG(...) void(0)
 #define EOS_DEBUG_METHOD() void(0)
+#define EOS_DEBUG_METHOD_FMT(...) void(0)
 #endif
 
 #if defined(UNICODE)
@@ -121,6 +130,11 @@ namespace Eos {
 
         Handle<Function> GetCallback() const {
             return callback_;
+        }
+
+        template <size_t argc>
+        void Callback(Handle<Value> (&argv)[argc]) {
+            callback_->Call(Context::GetCurrent()->Global(), argc, argv);
         }
 
     protected:
