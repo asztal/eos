@@ -1,16 +1,29 @@
 {
-	"name": "eos",
-	"version": "0.0.1",
-	"author": "lee@asztal.net",
-	"description": "a truly asynchronous ODBC library for node.js",
-	"scripts": {
-	},
-	"keywords": [ "odbc", "async", "sql" ],
-	"main": "./lib/eos",
-	"dependencies": {
-	},
-	"devDependencies": {
-	},
-	"license": "MIT",
-	"engines": { "node": ">=0.10" }
+  "name": "eos",
+  "version": "0.0.1",
+  "author": "lee@asztal.net",
+  "description": "a truly asynchronous ODBC library for node.js",
+  "scripts": {
+    "configure": "node-gyp configure",
+    "build": "node-gyp build",
+    "test": "grunt test"
+  },
+  "keywords": [
+    "odbc",
+    "async",
+    "sql"
+  ],
+  "main": "./lib/eos",
+  "dependencies": {},
+  "devDependencies": {
+    "colors": "~0.6.2",
+    "grunt": "~0.4.2",
+    "grunt-contrib-jshint": "~0.8.0",
+    "grunt-jasmine-node": "~0.1.0",
+    "expect.js": "~0.2.0"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.10"
+  }
 }

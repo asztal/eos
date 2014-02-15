@@ -1,7 +1,7 @@
-var assert = require('assert')
-  , colors = require('colors')
-  , domain = require('domain')
-  , eos = require('./');
+var assert = require('assert'),
+    colors = require('colors'),
+    domain = require('domain'),
+    eos = require('./');
 
 var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
 
