@@ -14,11 +14,11 @@ describe("Environment", function () {
     describe("Environment.drivers", function () {
         it("should return an array", function () {
             var drivers = common.env.drivers();
-            expect(drivers).to.be.an(Array);
-            expect(drivers).not.to.be.empty();
+            expect(drivers).to.be.an.instanceof(Array);
+            expect(drivers).not.to.be.empty;
             drivers.forEach(function (driver) {
-                expect(driver).to.be.an(Object);
-                expect(driver).to.only.have.keys("name", "attributes");
+                expect(driver).to.be.an("object");
+                expect(driver).to.have.keys("name", "attributes");
                 driver.attributes.forEach(function (attribute) {
                     expect(attribute).to.be.a("string");
                     expect(attribute).to.contain("=");
@@ -38,11 +38,11 @@ describe("Environment", function () {
     describe("Environment.dataSources", function () {
         it("should return an array", function () {
             var dataSources = common.env.dataSources();
-            expect(dataSources).to.be.an(Array);
-            expect(dataSources).not.to.be.empty();
+            expect(dataSources).to.be.an("array");
+            expect(dataSources).not.to.be.empty;
             dataSources.forEach(function (dsn) {
-                expect(dsn).to.be.an(Object);
-                expect(dsn).to.only.have.keys("server", "description");
+                expect(dsn).to.be.an("object");
+                expect(dsn).to.have.keys("server", "description");
                 expect(dsn.server).to.be.a('string');
                 expect(dsn.description).to.be.a('string');
             });
@@ -72,7 +72,7 @@ describe("Environment", function () {
             var all = common.env.dataSources(),
                 user = common.env.dataSources('user'),
                 system = common.env.dataSources('system');
-            expect(user.length + system.length).to.be(all.length);
+            expect(user.length + system.length).to.equal(all.length);
         });
     });
 });

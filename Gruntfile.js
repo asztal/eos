@@ -3,7 +3,10 @@ module.exports = function (grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
         jshint: {
-            src: ['lib/*.js', 'spec/*.js', 'test.js']
+            options: {
+                '-W030': true, // expect(xs).to.be.empty;
+            },
+            src: ['lib/*.js', 'spec/*.js', 'test.js'],
         },
         jasmine_node: {
             projectRoot: ".",

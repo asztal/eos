@@ -12,7 +12,8 @@ try {
 module.exports = {
     settings: settings,
 
-    expect: require("expect.js"),
+    expect: require("chai").expect,
+    should: require("chai").should,
 
     env: new Eos.Environment(),
 
