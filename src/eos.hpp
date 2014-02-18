@@ -38,7 +38,9 @@ private:
     static int depth;
 };
 
-#if defined(DEBUG)
+//#define DEBUG_QUIETLY
+
+#if defined(DEBUG) && !defined(DEBUG_QUIETLY)
 // Not about %s: Microsoft Visual C++ and GNU libc treat %s differently in wprintf.
 // The safest method is to use %ls for wide strings, and %hs for narrow strings, and
 // to avoid using %s at all.
@@ -47,9 +49,16 @@ private:
 #define EOS_DEBUG_METHOD(...) EosMethodDebugger __md__(__FUNCTIONW__ L"()\n"); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
 #define EOS_DEBUG_METHOD_FMT(fmt, ...) EosMethodDebugger __md__(__FUNCTIONW__ L"(" fmt L")\n", __VA_ARGS__); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
 #else
+// Don't even define this in release builds!
+// Should never be there.
+//#define EOS_DEBUG_NOISY(...) wprintf(__VA_ARGS__)
 #define EOS_DEBUG(...) void(0)
 #define EOS_DEBUG_METHOD() void(0)
 #define EOS_DEBUG_METHOD_FMT(...) void(0)
+#endif
+
+#if defined(DEBUG_QUIETLY)
+#define EOS_DEBUG_NOISY(...) wprintf(__VA_ARGS__)
 #endif
 
 #if defined(UNICODE)
