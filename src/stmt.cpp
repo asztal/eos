@@ -10,8 +10,11 @@ void Statement::Init(Handle<Object> exports) {
     EosHandle::Init("Statement", constructor_, New);
     
     auto sig0 = Signature::New(constructor_);
+    EOS_SET_METHOD(constructor_, "prepare", Statement, Prepare, sig0);
     EOS_SET_METHOD(constructor_, "execDirect", Statement, ExecDirect, sig0);
+    EOS_SET_METHOD(constructor_, "execute", Statement, Execute, sig0);
     EOS_SET_METHOD(constructor_, "fetch", Statement, Fetch, sig0);
+    EOS_SET_METHOD(constructor_, "cancel", Statement, Cancel, sig0);
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
 }
@@ -56,6 +59,15 @@ Statement::Statement(SQLHSTMT hStmt, Connection* conn, HANDLE hEvent)
     , connection_(conn)
 {
     EOS_DEBUG_METHOD();
+}
+
+Handle<Value> Statement::Cancel(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    if(!SQL_SUCCEEDED(SQLCancelHandle(SQL_HANDLE_STMT, GetHandle())))
+        return ThrowException(GetLastError());
+
+    return Undefined();
 }
 
 Statement::~Statement() {

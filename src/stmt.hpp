@@ -16,8 +16,11 @@ namespace Eos {
     public:
 
         static Handle<Value> New(const Arguments& args);
+        Handle<Value> Prepare(const Arguments& args);
         Handle<Value> ExecDirect(const Arguments& args);
+        Handle<Value> Execute(const Arguments& args);
         Handle<Value> Fetch(const Arguments& args);
+        Handle<Value> Cancel(const Arguments& args);
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);
 

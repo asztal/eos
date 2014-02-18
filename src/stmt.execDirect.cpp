@@ -7,8 +7,7 @@ namespace Eos {
         ExecDirectOperation::ExecDirectOperation(Handle<Value> sql)
             : sql_(sql)
         {
-            EOS_DEBUG_METHOD();
-            EOS_DEBUG(L"execDirect: %ls\n", *sql_);
+            EOS_DEBUG_METHOD_FMT(L"execDirect: %ls\n", *sql_);
         }
 
         static Handle<Value> New(Statement* owner, const Arguments& args) {

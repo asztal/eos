@@ -14,7 +14,7 @@ namespace Eos {
     }
 
     namespace {
-        void InitError();
+        void InitError(Handle<Object> exports);
     }
 
     void Init(Handle<Object> exports) {
@@ -26,7 +26,7 @@ namespace Eos {
                 rec->Init(exports);
         }
 
-        InitError();
+        InitError(exports);
     }
 
 #pragma region("Wait")
@@ -79,6 +79,7 @@ namespace Eos {
 
                 assert(firstCallback->target);
                 
+                // Helps debugging... globals don't seem to be accessible when debugging
                 auto fc = firstCallback; 
                 auto ic = initCount;
                 
@@ -86,7 +87,7 @@ namespace Eos {
 
                 firstCallback->target->Notify();
                 firstCallback->target->Unref();
-
+                
                 if (UnregisterWait(hWait))
                     DestroyWaiter();
                 else 
@@ -97,6 +98,7 @@ namespace Eos {
                 // lock the lock since it will have been destroyed
                 if (!initCount) {
                     assert(!firstCallback->next && "*Must* have been the last callback in the queue if initCount is 0");
+                    firstCallback = nullptr;
                     return; 
                 }
 
@@ -143,23 +145,13 @@ namespace Eos {
         return hRegisteredWaitHandle;
     }
 
-    void Unwait(HANDLE& hRegisteredWaitHandle) {
-        EOS_DEBUG_METHOD();
-        if (UnregisterWait(hRegisteredWaitHandle)) {
-            Async::DestroyWaiter();
-            hRegisteredWaitHandle = nullptr;
-        } else {
-            EOS_DEBUG(L"UnregisterWait failed\n");
-        }
-    }
-
 #pragma endregion
 
 #pragma region("OdbcError")
     namespace {
-        Persistent<Object> odbcErrorConstructor;
+        Persistent<Function> odbcErrorConstructor;
     
-        void InitError() {
+        void InitError(Handle<Object> exports) {
             EOS_DEBUG_METHOD();
 
             HandleScope scope;
@@ -177,7 +169,9 @@ namespace Eos {
             OdbcError.prototype.name = OdbcError.name;\
             OdbcError";
 
-            odbcErrorConstructor = Persistent<Object>::New(Script::Compile(String::New(code))->Run()->ToObject());
+            odbcErrorConstructor = Persistent<Function>::New(Handle<Function>::Cast(Script::Compile(String::New(code))->Run()));
+
+            exports->Set(String::NewSymbol("OdbcError"), odbcErrorConstructor, ReadOnly);
         }
     }
 

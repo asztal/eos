@@ -9,11 +9,14 @@ try {
     settings = require('./settings.json');
 }
 
+var expect = require("chai").expect,
+    should = require("chai").should;
+
 module.exports = {
     settings: settings,
 
-    expect: require("chai").expect,
-    should: require("chai").should,
+    expect: expect,
+    should: should,
 
     env: new Eos.Environment(),
 
@@ -35,3 +38,13 @@ module.exports = {
         });
     }
 };
+
+describe("Eos", function () {
+    it("should export Environment", function () {
+        expect(Eos.Environment).to.be.a("function");
+    });
+
+    it("should export OdbcError", function () {
+        expect(Eos.OdbcError).to.be.a("function");
+    });
+});
