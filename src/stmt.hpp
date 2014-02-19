@@ -20,6 +20,7 @@ namespace Eos {
         Handle<Value> ExecDirect(const Arguments& args);
         Handle<Value> Execute(const Arguments& args);
         Handle<Value> Fetch(const Arguments& args);
+        Handle<Value> GetData(const Arguments& args);
         Handle<Value> Cancel(const Arguments& args);
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);

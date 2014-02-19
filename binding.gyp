@@ -11,10 +11,13 @@
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
-          'src/stmt.execDirect.cpp',
-          'src/stmt.fetch.cpp',
-          'src/stmt.numResultCols.cpp',
           'src/stmt.describeCol.cpp',
+          'src/stmt.execDirect.cpp',
+          'src/stmt.execute.cpp',
+          'src/stmt.fetch.cpp',
+          'src/stmt.getData.cpp',
+          'src/stmt.numResultCols.cpp',
+          'src/stmt.prepare.cpp',
         'src/result.hpp', 'src/result.cpp'
       ],
       'defines' : [

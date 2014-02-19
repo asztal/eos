@@ -1,5 +1,8 @@
 #include "eos.hpp"
+
 #include "uv.h"
+#include <ctime>
+#include <climits>
 
 int EosMethodDebugger::depth = 0;
 
@@ -290,6 +293,105 @@ namespace Eos {
         HandleScope scope;
         return scope.Close(String::New(reinterpret_cast<const uint16_t*>(string), length));
     }
+
+    
+    SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType) {
+        switch(sqlType) {
+            case SQL_INTEGER: case SQL_SMALLINT: case SQL_TINYINT:
+                return SQL_C_SLONG;
+    
+            case SQL_NUMERIC: case SQL_DECIMAL: case SQL_BIGINT:
+            case SQL_FLOAT: case SQL_REAL: case SQL_DOUBLE:
+                return SQL_C_DOUBLE;
+
+            case SQL_DATETIME: case SQL_TIMESTAMP:
+                return SQL_C_TYPE_TIMESTAMP;
+
+            case SQL_BINARY: case SQL_VARBINARY: case SQL_LONGVARBINARY:
+                return SQL_C_BINARY;
+
+            case SQL_BIT:
+                return SQL_C_BIT;
+
+            default:
+                return SQL_C_TCHAR;
+        }
+    }
+
+    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT cType) {
+        switch(cType) {
+        case SQL_C_SLONG:
+            return Number::New(*reinterpret_cast<long*>(buffer));
+
+        case SQL_C_DOUBLE:
+            return Number::New(*reinterpret_cast<double*>(buffer));
+        
+        case SQL_C_BIT:
+            return *reinterpret_cast<bool*>(buffer) ? True() : False();
+        
+        case SQL_C_TYPE_TIMESTAMP: {
+            SQL_TIMESTAMP_STRUCT& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
+            tm tm = { 0 };
+            tm.tm_year = ts.year - 1900;
+            tm.tm_mon = ts.month - 1;
+            tm.tm_mday = ts.day;
+            tm.tm_hour = ts.hour;
+            tm.tm_min = ts.minute;
+            tm.tm_sec = ts.second;
+
+            
+#if defined(WIN32)
+        return Date::New((double(mktime(&tm)) * 1000)
+               + (ts.fraction / 1000000.0));
+#else
+        return Date::New((double(timelocal(&tm)) * 1000)
+               + (ts.fraction / 1000000.0));
+#endif
+        }
+
+        default:
+            return Undefined();
+        }
+    }
+
+    void JSBuffer::Init(Handle<Object>) {
+        auto val = Context::GetCurrent()->Global()->Get(String::NewSymbol("Buffer"));
+        if (!val->IsFunction())
+            ThrowError("The global Buffer object is not a function. Please don't duck punch the Buffer object when using Eos.");
+
+        constructor_ = Persistent<Function>::New(val.As<Function>());
+    }
+
+    Handle<Object> JSBuffer::New(size_t length) {
+        assert(length <= UINT32_MAX);
+
+        Handle<Value> argv[] = { Uint32::New(length) };
+        return Constructor()->NewInstance(1, argv);
+    }
+
+    const char* JSBuffer::Unwrap(Handle<Object> handle, SQLPOINTER& buffer, SQLLEN& bufferLength) {
+        auto parent = handle->Get(String::NewSymbol("parent"));
+        auto sliceOffset = handle->Get(String::NewSymbol("offset"))->Int32Value();
+        auto sliceLength = handle->Get(String::NewSymbol("length"))->Int32Value();
+                
+        if (!parent->IsObject() || !Buffer::constructor_template->HasInstance(parent))
+            return "Invalid Buffer object (parent is not a SlowBuffer)";
+        Buffer* slow = ObjectWrap::Unwrap<Buffer>(parent.As<Object>());
+
+        buffer = Buffer::Data(slow);
+        bufferLength = Buffer::Length(slow);
+                
+        if (sliceOffset < 0 || sliceLength < 0 || sliceOffset + sliceLength > bufferLength)
+            return "Invalid Buffer object (offset/length invalid)";
+
+        buffer = reinterpret_cast<char*>(buffer) + sliceOffset;
+        bufferLength = sliceLength;
+
+        return nullptr;
+    }
+
+    Persistent<Function> JSBuffer::constructor_;
+    ClassInitializer<JSBuffer> jsBufferInit;
 }
 
 NODE_MODULE(eos, &Eos::Init)

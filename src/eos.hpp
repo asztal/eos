@@ -2,6 +2,7 @@
 
 #include <node.h>
 #include <node_object_wrap.h>
+#include <node_buffer.h>
 #include <v8.h>
 
 #include <new>
@@ -298,6 +299,22 @@ namespace Eos {
 
         String::Value value;
     };
+
+    struct JSBuffer {
+        static void Init(Handle<Object>);
+
+        static Handle<Object> New(Buffer* slowBuffer, size_t newLength = 0);
+        static Handle<Object> New(size_t length);
+        static Handle<Function> Constructor() { return constructor_; }
+
+        static const char* Unwrap(Handle<Object> jsBuffer, SQLPOINTER& buffer, SQLLEN& length);
+
+    private:
+        static Persistent<Function> constructor_;
+    };
+
+    SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType);
+    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT targetType);
     
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
 

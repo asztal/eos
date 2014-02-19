@@ -25,34 +25,27 @@ d.run(function() {
         var stmt = conn.newStatement();
         log(stmt);
 
-        stmt.execDirect("select 42.0 as x, 0x274269274269274269274269 as y, replicate('a',33) as z", d.bind(function (err) {
+        stmt.execDirect("select 88 as x, 0x274269274269274269274269 as y, replicate('a',33) as z", d.bind(function (err) {
             assert.ifError(err);
 
             stmt.fetch(d.bind(function (err, hasData) {
                 assert.ifError(err);
                 log("hasData: " + hasData);
 
-                stmt.numResultCols(d.bind(function (err, cols) {
+                var SQL_INTEGER = 4
+                stmt.getData(1, SQL_INTEGER, null, false, function (err, result, totalBytes) {
                     assert.ifError(err);
-                    log("cols: " + cols);
+                    log("result:" + typeof result);
+                    console.log(result);
+                    log("totalBytes:" + totalBytes);
 
-                    stmt.describeCol(2, d.bind(function (err, name, type, chars, digits, nullable) {
+                    conn.disconnect(d.bind(function (err) {
+                        log(err);
                         assert.ifError(err);
 
-                        log("name: " + name);
-                        log("type: " + type);
-                        log("chars: " + chars);
-                        log("digits: " + digits);
-                        log("nullable: " + nullable);
-
-                        conn.disconnect(d.bind(function (err) {
-                            log(err);
-                            assert.ifError(err);
-
-                            conn.free();
-                        }));
+                        conn.free();
                     }));
-                }));
+                });
             }));
         }));
     }));
