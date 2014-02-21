@@ -261,3 +261,52 @@ Disconnects from the data source. After a successful disconnect operation, the c
 ### Connection.free() _(synchronous)_
 
 Destroys the connection handle.
+
+## Statement 
+
+A `Statement` is a wrapper around a `SQLHSTMT` and can be obtained via `conn.newStatement()`. Statements represent SQL statements which can be prepared and executed with bound parameters, and can return any number of record sets (including none).
+
+### Statement.prepare(sql, callback)
+
+Wraps **SQLPrepare**. Prepare the statement using given SQL, which may contain wildcards to be replaced by [bound parameters](http://msdn.microsoft.com/en-us/library/ms712522%28v=vs.85%29.aspx). If successful, the prepared statement can be executed using `Statement.execute()`.
+
+### Statement.execute(callback [err, needData]) 
+
+Executes the prepared statement. If there are data-at-execution parameters whose values have not yet been specified, the callback will be called with _needData_ set to true. After successful execution, the cursor will be positioned before the first result set. To start reading the first result set (if there is any), call `Statement.fetch()`.
+
+### Statement.execDirect(sql, callback [err, needData])
+
+Wraps **SQLExecDirect**. The same as `Statement.execute`, except there is no need to call `Statement.prepare()`.
+
+### Statement.fetch(callback [err, hasData])
+
+Wraps **SQLFetch**. If successful, _hasData_ indicates whether or not the cursor is positioned on a result set.
+
+### Statement.numResultCols(callback [err, count]) 
+
+Wraps **SQLNumResultCols**. Calls the callback with _count_ as the number of result columns. Only valid if the cursor is positioned on a result set.
+
+### Statement.describeCol(columnNumber, callback [err, name, dataType, columnSize, decimalDigits, nullable)
+
+Wraps **SQLDescribeCol**. Returns information about the column at index `columnNumber`, where 1 is the first column and 0 is the bookmark column (if bookmark columns are enabled). 
+ * _name_ is the name of the column.
+ * _dataType_ is a numeric value representing the SQL data type of the column (e.g. `SQL_VARCHAR`, `SQL_INTEGER`, `SQL_BINARY`)
+ * _columnSize_ is an integer representing the number of bytes required to store the column value. _(Note: I am not entirely sure if this will be accurate. I have heard reports of SQL Server returning 0 for `varchar(max)` columns.)_
+ * _decimalDigits_ is the number of digits after the decimal point supported by the column data type, for integral values.
+ * _nullable_ is either _true_ (if the column value may be null), _false_ (if the column value cannot be null), or _undefined_ (if the nullability of the column is unknown).
+ 
+### Statement.getData(columnNumber, dataType, [buffer], raw, callback [err, result, totalBytes, more])
+
+Wraps **SQLGetData**. Retrieves the value of a column, coerced to the value specified by _dataType_ (e.g. `SQL_INTEGER`). Most SQL data types can be represented as JavaScript values. If the column has a long value, only a portion of the value will be fetched. The size of this portion depends on the size of the _buffer_ passed in (if no buffer is passed in, a 64KiB buffer is created). To aid in figuring out whether more data exists to retrieve, the _more_ callback parameter is true when there is more data to get (or when the entire length of the column is unknown, in which case it is assumed that there is more data to retrieve). 
+
+Successive `getData` calls will retrieve successive chunks of the column value, until _result_ is `undefined`.
+
+If _dataType_ is `SQL_BINARY`, the results will be placed into _buffer_. If no _buffer_ is passed, a new `Buffer` is allocated. _buffer_ may be a `Buffer` or a `SlowBuffer`. If the call to `getData` does not use the entire buffer, a slice of the input buffer is returned, otherwise the buffer itself is returned.
+
+If _dataType_ is `SQL_VARCHAR`, the results will also be placed into _buffer_, however the results will be converted to a `String` (unless _raw_ is true, see below).
+
+If _raw_ is true, _result_ will simply be the _buffer_ which was passed in (or an automatically-allocated buffer, if none was given). The buffer will not be sliced; it is up to the caller to use _totalBytes_ to determine what to do and to read the data in the correct format. (Note: _totalBytes_ may be `undefined` if the total length of the value is unknown. In this case the buffer will be full.)
+
+### Statement.free() _(synchronous)_
+
+Destroys the statement handle.
