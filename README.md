@@ -182,22 +182,22 @@ E.g. the Microsoft Access Text Driver does not support **SQLBrowseConnect**.
 
 #### FileUsage
 
-|FileUsage||
-|-|-|
-|0|Not file based|
-|1|Files are treated as tables|
-|2|Files are treated as databases|
+FileUsage | Means
+--- | ---
+0 | Not file based
+1 | Files are treated as tables
+2 | Files are treated as databases
 
 #### SQLLevel 
 
 My limited research has been able to determine that the following values for _SQLLevel_ are possible:
 
-|SQLLevel||
-|-|-|
-|0|Basic SQL-92 Compliance|
-|1|FIPS127-2 Transitional|
-|2|SQL-92 Intermediate|
-|3|SQL-92 Full|
+SQLLevel | Means
+--- | --- 
+0 | Basic SQL-92 Compliance
+1 | FIPS127-2 Transitional
+2 | SQL-92 Intermediate
+3 | SQL-92 Full
 
 ### Environment.free() _(synchronous)_
 
@@ -208,13 +208,13 @@ Destroys the environment handle.
 A `Connection` is a wrapper around a `SQLHDBC` which is used to connect to data sources and create
 statements to execute. A connection may be in one of five states once allocated:
 
-|State||
-|-|-|
-|C2|Allocated|
-|C3|Connecting via `browseConnect` (need more data)|
-|C4|Connected|
-|C5|Connected, allocated statement|
-|C6|Connected, in transaction|
+State| Means
+--- | ---
+C2 | Allocated
+C3 | Connecting via `browseConnect` (need more data)
+C4 | Connected
+C5 | Connected, allocated statement
+C6 | Connected, in transaction
 
 ### Connection.connect(connectionString, callback)
 
