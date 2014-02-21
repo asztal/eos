@@ -328,7 +328,14 @@ namespace Eos {
         
         case SQL_C_BIT:
             return *reinterpret_cast<bool*>(buffer) ? True() : False();
-        
+
+        case SQL_C_CHAR:
+            return String::New(reinterpret_cast<const char*>(buffer), bufferLength);
+
+        case SQL_C_WCHAR:
+            assert(bufferLength % 2 == 0);
+            return StringFromTChar(reinterpret_cast<const SQLWCHAR*>(buffer), bufferLength / 2);
+
         case SQL_C_TYPE_TIMESTAMP: {
             SQL_TIMESTAMP_STRUCT& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
             tm tm = { 0 };
@@ -348,6 +355,8 @@ namespace Eos {
                + (ts.fraction / 1000000.0));
 #endif
         }
+
+        
 
         default:
             return Undefined();
@@ -388,6 +397,20 @@ namespace Eos {
         bufferLength = sliceLength;
 
         return nullptr;
+    }
+
+    // The first parameter might actually be a buffer, might be a SlowBuffer...
+    // Doesn't really matter.
+    Handle<Object> JSBuffer::Slice(Handle<Object> buffer, SQLLEN offset, SQLLEN length) {
+        auto slice = buffer->Get(String::NewSymbol("slice"));
+        assert (slice->IsFunction() && "The passed buffer object does not have a 'slice' function");
+
+        auto sliceFn = Local<Function>::Cast(slice);
+        Local<Value> argv[] = { Integer::New(offset), Integer::New(length) };
+        auto result = sliceFn->Call(buffer, 2, argv);
+
+        assert(result->IsObject() && "The result of slice() is not an object");
+        return result->ToObject();
     }
 
     Persistent<Function> JSBuffer::constructor_;

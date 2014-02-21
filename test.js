@@ -25,18 +25,22 @@ d.run(function() {
         var stmt = conn.newStatement();
         log(stmt);
 
-        stmt.execDirect("select 88 as x, 0x274269274269274269274269 as y, replicate('a',33) as z", d.bind(function (err) {
+        stmt.execDirect("select 88 as x, 'I shot the sheriff' as y, replicate('a',33) as z", d.bind(function (err) {
             assert.ifError(err);
 
             stmt.fetch(d.bind(function (err, hasData) {
                 assert.ifError(err);
                 log("hasData: " + hasData);
 
-                var SQL_INTEGER = 4
-                stmt.getData(1, SQL_INTEGER, null, false, function (err, result, totalBytes) {
+                var SQL_INTEGER = 4, SQL_VARCHAR = 12, SQL_BINARY = -2
+
+                var SlowBuffer = require('buffer').SlowBuffer
+
+                stmt.getData(2, SQL_BINARY, new SlowBuffer(100), false, function (err, result, totalBytes) {
                     assert.ifError(err);
                     log("result:" + typeof result);
                     console.log(result);
+                    console.log(result.parent);
                     log("totalBytes:" + totalBytes);
 
                     conn.disconnect(d.bind(function (err) {

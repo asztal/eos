@@ -12,7 +12,8 @@ namespace Eos {
             , SQLPOINTER buffer
             , SQLLEN bufferLength
             , Handle<Object> bufferHandle
-            , bool raw)
+            , bool raw
+            )
             : columnNumber_(columnNumber)
             , sqlType_(sqlType)
             , buffer_(buffer)
@@ -103,11 +104,12 @@ namespace Eos {
 
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
-            Handle<Value> argv[3];
+            Handle<Value> argv[4];
             argv[0] = Undefined();
             argv[2] = (totalLength_ != SQL_NO_TOTAL)
                     ? Int32::New(totalLength_)
                     : Undefined();
+            argv[3] = Boolean::New(totalLength_ > bufferLength_ || (totalLength_ == SQL_NO_TOTAL && ret == SQL_SUCCESS_WITH_INFO));
 
             if (ret == SQL_NO_DATA)
                 argv[1] = Undefined();
@@ -115,8 +117,16 @@ namespace Eos {
                 argv[1] = Null();
             else if (raw_)
                 assert(!bufferHandle_.IsEmpty()), argv[1] = bufferHandle_;
-            else
-                argv[1] = Eos::ConvertToJS(buffer_, bufferLength_, cType_);
+            else if (cType_ == SQL_C_BINARY) {
+                if (totalLength_ >= bufferLength_) 
+                    argv[1] = bufferHandle_;
+                else
+                    argv[1] = JSBuffer::Slice(bufferHandle_, 0, totalLength_);
+            } else {
+                argv[1] = Eos::ConvertToJS(buffer_, min(bufferLength_, totalLength_), cType_);
+                if (argv[1]->IsUndefined())
+                    argv[0] = OdbcError("Unable to intepret contents of result buffer");
+            }
             
             Callback(argv);
         }

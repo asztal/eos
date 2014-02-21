@@ -306,7 +306,7 @@ namespace Eos {
         static Handle<Object> New(Buffer* slowBuffer, size_t newLength = 0);
         static Handle<Object> New(size_t length);
         static Handle<Function> Constructor() { return constructor_; }
-
+        static Handle<Object> Slice(Handle<Object> jsBuffer, SQLLEN offset, SQLLEN length);
         static const char* Unwrap(Handle<Object> jsBuffer, SQLPOINTER& buffer, SQLLEN& length);
 
     private:
