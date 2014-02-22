@@ -18,6 +18,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "cancel", Statement, Cancel, sig0);
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
+    EOS_SET_METHOD(constructor_, "closeCursor", Statement, CloseCursor, sig0);
 }
 
 Handle<Value> Statement::New(const Arguments& args) {
@@ -66,6 +67,21 @@ Handle<Value> Statement::Cancel(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
     if(!SQL_SUCCEEDED(SQLCancelHandle(SQL_HANDLE_STMT, GetHandle())))
+        return ThrowException(GetLastError());
+
+    return Undefined();
+}
+
+Handle<Value> Statement::CloseCursor(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    SQLRETURN ret;
+    if (args.Length() > 0 && args[0]->IsTrue())
+        ret = SQLCloseCursor(GetHandle());
+    else
+        ret = SQLFreeStmt(GetHandle(), SQL_CLOSE);
+
+    if(!SQL_SUCCEEDED(ret))
         return ThrowException(GetLastError());
 
     return Undefined();

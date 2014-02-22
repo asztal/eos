@@ -25,6 +25,8 @@ namespace Eos {
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);
 
+        Handle<Value> CloseCursor(const Arguments& args);
+
     public:
 
         // Non-JS methods

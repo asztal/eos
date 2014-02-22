@@ -345,7 +345,6 @@ namespace Eos {
             tm.tm_hour = ts.hour;
             tm.tm_min = ts.minute;
             tm.tm_sec = ts.second;
-
             
 #if defined(WIN32)
         return Date::New((double(mktime(&tm)) * 1000)
@@ -355,8 +354,6 @@ namespace Eos {
                + (ts.fraction / 1000000.0));
 #endif
         }
-
-        
 
         default:
             return Undefined();
