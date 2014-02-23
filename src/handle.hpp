@@ -1,6 +1,7 @@
 #pragma once 
 
 #include "eos.hpp"
+#include "operation.hpp"
 
 namespace Eos {
     struct EosHandle: ObjectWrap, INotify {
@@ -33,24 +34,30 @@ namespace Eos {
             if (hWait_)
                 return ThrowError("This handle is already busy.");
 
-            operation_ = Persistent<Object>::New(TOp::Construct(argv).As<Object>());
-            if (operation_.IsEmpty())
-                return operation_; // Probably the constructor threw
+            IOperation* currentOp = nullptr;
+            if (!operation_.IsEmpty()) {
+                currentOp = ObjectWrap::Unwrap<IOperation>(operation_);
+                return ThrowError("An operation is already in progress on this handle.");
+            }
+
+            auto op = TOp::Construct(argv).As<Object>();
+            if (op.IsEmpty())
+                return op; // Probably the constructor threw
 
             bool completedSynchronously = 
-                ObjectWrap::Unwrap<TOp>(operation_)->Begin();
+                ObjectWrap::Unwrap<TOp>(op)->Begin();
 
             // Only register a wait if it did not complete synchronously
             // It should be safe to register the wait even if the event is already signalled.
             if (!completedSynchronously) {
                 EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
-                hWait_ = Eos::Wait(this);
-                if (!hWait_) {
-                    operation_.Dispose();
+                if (hWait_ = Eos::Wait(this))
+                    operation_ = Persistent<Object>::New(op);
+                else 
                     return ThrowException(OdbcError("Unable to begin asynchronous operation"));
-                }
-            } else 
+            } else {
                 EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
+            }
             
             return Undefined();
         }

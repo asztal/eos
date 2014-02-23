@@ -41,9 +41,11 @@ void EosHandle::Init ( const char* className
 void EosHandle::Notify() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
     
+    assert(!operation_.IsEmpty());
+
     HandleScope scope;
     Handle<Object> op = operation_;
-    operation_.Dispose();
+    operation_.Clear();
     hWait_ = nullptr;
 
     ObjectWrap::Unwrap<IOperation>(op)->OnCompleted();

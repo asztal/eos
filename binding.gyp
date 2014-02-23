@@ -10,6 +10,7 @@
           'src/conn.connect.cpp',
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
+		'src/operation.hpp',
         'src/stmt.hpp', 'src/stmt.cpp',
           'src/stmt.describeCol.cpp',
           'src/stmt.execDirect.cpp',
@@ -17,8 +18,7 @@
           'src/stmt.fetch.cpp',
           'src/stmt.getData.cpp',
           'src/stmt.numResultCols.cpp',
-          'src/stmt.prepare.cpp',
-        'src/result.hpp', 'src/result.cpp'
+          'src/stmt.prepare.cpp'
       ],
       'defines' : [
         'UNICODE', 'DEBUG'

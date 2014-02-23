@@ -70,6 +70,30 @@ namespace Eos {
             }
         }
 
+        void PrintCallbackChain(const wchar_t* msg) {
+            assert(msg);
+
+            if (!firstCallback) {
+                EOS_DEBUG(L"%ls, callback chain is empty\n", msg);
+                return;
+            }
+
+            {
+                int len = 1;
+                auto cb = firstCallback;
+                while (cb = cb->next)
+                    len++;
+
+                EOS_DEBUG(L"%ls, chain length: %i\n", msg, len);
+
+                cb = firstCallback;
+                do {
+                    cb->target;
+                    EOS_DEBUG(L" ** 0x%p->Notify()\n", cb->target);
+                } while (cb = cb->next);
+            }
+        }
+
         void ProcessCallbackQueue(uv_async_t*, int) {
             EOS_DEBUG_METHOD();
 
@@ -77,9 +101,11 @@ namespace Eos {
 
             assert(firstCallback);
 
-            while (firstCallback) {
-                uv_rwlock_rdunlock(&rwlock);
+#if defined(DEBUG)
+            PrintCallbackChain(L"Processing callbacks");
+#endif 
 
+            while (firstCallback) {
                 assert(firstCallback->target);
                 
                 // Helps debugging... globals don't seem to be accessible when debugging
@@ -88,27 +114,30 @@ namespace Eos {
                 
                 HANDLE hWait = firstCallback->target->GetWaitHandle();
 
-                firstCallback->target->Notify();
-                firstCallback->target->Unref();
-                
                 if (UnregisterWait(hWait))
                     DestroyWaiter();
                 else 
                     EOS_DEBUG(L"UnregisterWait failed\n");
+                
+                auto current = firstCallback;
+                firstCallback = firstCallback->next;
 
                 // If initCount is zero, the last callback must have been called,
                 // so firstCallback->next should be nullptr, and we don't need to
                 // lock the lock since it will have been destroyed
                 if (!initCount) {
-                    assert(!firstCallback->next && "*Must* have been the last callback in the queue if initCount is 0");
-                    firstCallback = nullptr;
+                    assert(!firstCallback && "*Must* have been the last callback in the queue if initCount is 0");
+                    current->target->Notify();
+                    current->target->Unref();
+                    delete current;
                     return; 
                 }
 
+                uv_rwlock_rdunlock(&rwlock);
+                current->target->Notify();
+                current->target->Unref();
                 uv_rwlock_rdlock(&rwlock);
 
-                auto current = firstCallback;
-                firstCallback = firstCallback->next;
                 delete current;
             }
             
@@ -124,11 +153,24 @@ namespace Eos {
 
             uv_rwlock_wrlock(&rwlock);
 
-            // Enqueue this callback before the others (easier)
-            Callback* head = firstCallback;
-            firstCallback = new Callback(reinterpret_cast<INotify*>(data));
-            firstCallback->next = head;
+#if defined(DEBUG)
+            PrintCallbackChain(L"About to add new callback");
+#endif 
 
+            // Enqueue the callbacks, in the order that they happened.
+            auto cb = new Callback(reinterpret_cast<INotify*>(data));
+            if (firstCallback) {
+                auto node = firstCallback;
+                while (node->next)
+                    node = node->next;
+                node->next = cb;
+            } else {
+                firstCallback = cb;
+            }
+            
+#if defined(DEBUG)
+            PrintCallbackChain(L"Added new callback");
+#endif 
             uv_rwlock_wrunlock(&rwlock);
 
             uv_async_send(&async);
@@ -149,6 +191,25 @@ namespace Eos {
     }
 
 #pragma endregion
+    void PrintStackTrace() {
+        PrintStackTrace(StackTrace::CurrentStackTrace(10));
+    }
+
+    void PrintStackTrace(Handle<StackTrace> stackTrace) {
+        assert(!stackTrace.IsEmpty());
+
+        auto frames = stackTrace->GetFrameCount();
+        for (int i = 0; i < frames; ++i) {
+            auto frame = stackTrace->GetFrame(i);
+
+            WStringValue file(frame->GetScriptNameOrSourceURL());
+            assert(*file);
+
+            int line = frame->GetLineNumber(), column = frame->GetColumn();
+
+            fwprintf(stderr, L"  at %ls:%i:%i\n", *file, line, column);
+        }
+    }
 
 #pragma region("OdbcError")
     namespace {

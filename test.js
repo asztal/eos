@@ -3,17 +3,28 @@ var assert = require('assert'),
     domain = require('domain'),
     eos = require('./');
 
-var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
+if (true) {
+    var jasmine = require("jasmine-node");
+    jasmine.executeSpecsInFolder({
+        specFolders: ["spec"],
+        showColors: true,
+        isVerbose: true
+    });
+} else {
+    var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
 
-function log(x) { console.log(String(x).bold.yellow); }
+    function log(x) { console.log(String(x).bold.yellow); }
 
-var d = domain.create();
+    var d = domain.create();
 
-d.on("error", function (e) {
-    console.log((((e && e.constructor && e.constructor.name) || "Error") + ":").red.bold, e);
-});
+    d.on("error", function (e) {
+        console.log((((e && e.constructor && e.constructor.name) || "Error") + ":").red.bold, e);
+    });
 
-d.run(function() {
+    d.run(test);
+}
+
+function test() {
     var env = new eos.Environment();
 
     var conn = env.newConnection();
@@ -32,9 +43,8 @@ d.run(function() {
                 assert.ifError(err);
                 log("hasData: " + hasData);
 
-                var SQL_INTEGER = 4, SQL_VARCHAR = 12, SQL_BINARY = -2
-
-                var SlowBuffer = require('buffer').SlowBuffer
+                var SQL_INTEGER = 4, SQL_VARCHAR = 12, SQL_BINARY = -2;
+                var SlowBuffer = require('buffer').SlowBuffer;
 
                 stmt.getData(2, SQL_BINARY, new SlowBuffer(100), false, function (err, result, totalBytes) {
                     assert.ifError(err);
@@ -53,4 +63,5 @@ d.run(function() {
             }));
         }));
     }));
-});
+}
+
