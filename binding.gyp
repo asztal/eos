@@ -11,6 +11,7 @@
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
 		'src/operation.hpp',
+        'src/parameter.hpp', 'src/parameter.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
           'src/stmt.describeCol.cpp',
           'src/stmt.execDirect.cpp',

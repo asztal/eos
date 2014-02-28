@@ -29,6 +29,14 @@ namespace Eos {
                 rec->Init(exports);
         }
 
+#define DEFINE_CONSTANT(name) exports->Set(String::NewSymbol(#name), Integer::New(name))
+        
+        DEFINE_CONSTANT(SQL_PARAM_INPUT);
+        DEFINE_CONSTANT(SQL_PARAM_INPUT_OUTPUT);
+        DEFINE_CONSTANT(SQL_PARAM_INPUT_OUTPUT_STREAM);
+        DEFINE_CONSTANT(SQL_PARAM_OUTPUT);
+        DEFINE_CONSTANT(SQL_PARAM_OUTPUT_STREAM);
+
         InitError(exports);
     }
 
@@ -379,6 +387,23 @@ namespace Eos {
         }
     }
 
+    SQLSMALLINT GetSQLType(Handle<Value> jsValue) {
+        if (jsValue->IsInt32())
+            return SQL_INTEGER;
+        if (jsValue->IsNumber())
+            return SQL_DOUBLE;
+        if (jsValue->IsBoolean())
+            return SQL_BIT;
+        if (jsValue->IsDate())
+            return SQL_TIMESTAMP;
+        if (Buffer::HasInstance(jsValue))
+            return SQL_LONGVARBINARY;
+        if (jsValue->IsObject() && JSBuffer::HasInstance(jsValue.As<Object>()))
+            return SQL_LONGVARBINARY;
+
+        return SQL_WCHAR;
+    }
+
     Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT cType) {
         switch(cType) {
         case SQL_C_SLONG:
@@ -429,6 +454,20 @@ namespace Eos {
         constructor_ = Persistent<Function>::New(val.As<Function>());
     }
 
+    Handle<Object> JSBuffer::New(Handle<String> string, Handle<String> enc) {
+        Handle<Value> argv[] = { string, enc };
+        return Constructor()->NewInstance(2, argv);
+    }
+
+    bool JSBuffer::HasInstance(Handle<Value> value) {
+        return value->IsObject() 
+            && HasInstance(value.As<Object>());
+    }
+    
+    bool JSBuffer::HasInstance(Handle<Object> value) {
+        return value->GetConstructor()->StrictEquals(JSBuffer::Constructor());
+    }
+
     Handle<Object> JSBuffer::New(size_t length) {
         assert(length <= UINT32_MAX);
 
@@ -437,6 +476,12 @@ namespace Eos {
     }
 
     const char* JSBuffer::Unwrap(Handle<Object> handle, SQLPOINTER& buffer, SQLLEN& bufferLength) {
+        if (Buffer::HasInstance(handle)) {
+            buffer = Buffer::Data(handle);
+            bufferLength = Buffer::Length(handle);
+            return nullptr;
+        }
+
         auto parent = handle->Get(String::NewSymbol("parent"));
         auto sliceOffset = handle->Get(String::NewSymbol("offset"))->Int32Value();
         auto sliceLength = handle->Get(String::NewSymbol("length"))->Int32Value();

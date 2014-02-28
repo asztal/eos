@@ -156,6 +156,12 @@ namespace Eos {
 
     struct JSBuffer {
         static void Init(Handle<Object>);
+        
+        static bool HasInstance(Handle<Value> value);
+        static bool HasInstance(Handle<Object> value);
+
+        static Handle<Object> New(Handle<String> str);
+        static Handle<Object> New(Handle<String> str, Handle<String> enc);
 
         static Handle<Object> New(Buffer* slowBuffer, size_t newLength = 0);
         static Handle<Object> New(size_t length);
@@ -167,9 +173,15 @@ namespace Eos {
         static Persistent<Function> constructor_;
     };
 
+    SQLSMALLINT GetSQLType(Handle<Value> jsValue);
     SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType);
     Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT targetType);
     
+    template <typename T>
+    inline Persistent<T> Persist(Handle<T> value) {
+        return Persistent<T>::New(value);
+    }
+
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
 
     template <typename T> T min (const T& x, const T& y) { return x < y ? x : y; }

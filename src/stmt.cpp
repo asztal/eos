@@ -1,4 +1,5 @@
 #include "stmt.hpp"
+#include "parameter.hpp"
 
 using namespace Eos;
 
@@ -18,6 +19,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "cancel", Statement, Cancel, sig0);
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
+    EOS_SET_METHOD(constructor_, "bindParameter", Statement, BindParameter, sig0);
     EOS_SET_METHOD(constructor_, "closeCursor", Statement, CloseCursor, sig0);
 }
 
@@ -63,13 +65,83 @@ Statement::Statement(SQLHSTMT hStmt, Connection* conn, HANDLE hEvent)
     EOS_DEBUG_METHOD();
 }
 
-Handle<Value> Statement::Cancel(const Arguments& args) {
+Handle<Value> Statement::Cancel(const Arguments&) {
     EOS_DEBUG_METHOD();
 
     if(!SQL_SUCCEEDED(SQLCancelHandle(SQL_HANDLE_STMT, GetHandle())))
         return ThrowException(GetLastError());
 
     return Undefined();
+}
+
+Handle<Value> Statement::BindParameter(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+    
+    if (args.Length() < 4)
+        return ThrowError("BindParameter expects 4 or 5 arguments");
+
+    auto parameterNumber = args[0]->Int32Value();
+    if (parameterNumber < 1 || parameterNumber > USHRT_MAX)
+        return ThrowError("The parameter number is incorrect (valid values: 1 - 65535)");
+
+    SQLSMALLINT inOutType = args[1]->Int32Value();
+    SQLSMALLINT sqlType = args[2]->Int32Value();
+    SQLSMALLINT decimalDigits = args[3]->Int32Value();
+
+    Handle<Value> jsValue = Undefined();
+    if (args.Length() >= 5) 
+        jsValue = args[4];
+
+    auto param = Parameter::Marshal(parameterNumber, inOutType, decimalDigits, jsValue, sqlType);
+    if (!param)
+        return ThrowError("The specified value is invalid.");
+
+    auto ret = SQLBindParameter(
+        GetHandle(),
+        parameterNumber,
+        inOutType,
+        param->CType(),
+        param->SQLType(),
+        param->Length(),
+        decimalDigits,
+        param->Buffer(),
+        param->Length(),
+        param->LenBuffer());
+
+    if (!SQL_SUCCEEDED(ret))
+        return ThrowException(GetLastError());
+  
+    Statement::AddBoundParameter(param);
+
+    return Undefined();
+}
+
+void Statement::AddBoundParameter(Parameter* param) {
+    EOS_DEBUG_METHOD();
+
+    if (bindings_.IsEmpty())
+        bindings_ = Persist(Array::New());
+
+    bindings_->Set(param->ParameterNumber(), param->handle_);
+}
+
+Parameter* Statement::GetBoundParameter(SQLUSMALLINT parameterNumber) {
+    EOS_DEBUG_METHOD_FMT(L"%i", parameterNumber);
+
+    if (bindings_.IsEmpty())
+        return nullptr;
+
+    auto handle = bindings_->Get(parameterNumber);
+    if (handle->IsObject())
+        return Parameter::Unwrap(handle.As<Object>());
+
+    return nullptr;
+}
+
+void Statement::ClearBoundParameters() {
+    EOS_DEBUG_METHOD();
+
+    bindings_.Clear();
 }
 
 Handle<Value> Statement::CloseCursor(const Arguments& args) {
