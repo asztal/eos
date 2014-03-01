@@ -4,7 +4,7 @@
 
 namespace Eos {
     struct Parameter: ObjectWrap {
-        Parameter(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT sqlType, SQLSMALLINT cType, void* buffer, SQLLEN length, Handle<Object> bufferObject);
+        Parameter(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT sqlType, SQLSMALLINT cType, void* buffer, SQLLEN length, Handle<Object> bufferObject, SQLLEN indicator);
         ~Parameter();
         
         static void Init(Handle<Object> exports);
@@ -23,7 +23,7 @@ namespace Eos {
         SQLSMALLINT SQLType() const { return sqlType_; }
         SQLSMALLINT CType() const { return cType_; }
 
-        SQLLEN* LenBuffer() { return &lenBuffer_; }
+        SQLLEN* Indicator() { return &indicator_; }
 
     private:
         static Persistent<FunctionTemplate> constructor_;
@@ -33,7 +33,7 @@ namespace Eos {
         SQLUSMALLINT parameterNumber_;
 
         void* buffer_;
-        SQLLEN length_, lenBuffer_;
+        SQLLEN length_, indicator_;
 
         Persistent<Object> bufferObject_;
     };

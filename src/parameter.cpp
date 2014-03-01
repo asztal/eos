@@ -9,7 +9,7 @@ Persistent<FunctionTemplate> Parameter::constructor_;
 void Parameter::Init(Handle<Object> exports) {
     constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New());
     constructor_->SetClassName(String::NewSymbol("Parameter"));
-    constructor_->PrototypeTemplate()->SetInternalFieldCount(1);
+    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
 }
 
 Parameter::Parameter
@@ -20,6 +20,7 @@ Parameter::Parameter
     , void* buffer
     , SQLLEN length
     , Handle<Object> bufferObject
+    , SQLLEN indicator
     ) 
     : parameterNumber_(parameterNumber)
     , inOutType_(inOutType)
@@ -28,6 +29,7 @@ Parameter::Parameter
     , buffer_(buffer)
     , length_(length)
     , bufferObject_(Persistent<Object>::New(bufferObject))
+    , indicator_(indicator)
 {
     EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
 }
@@ -217,7 +219,7 @@ Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutTyp
     assert(!handle.IsEmpty());
     assert(buffer);
 
-    auto param = new(nothrow) Parameter(parameterNumber, inOutType, sqlType, cType, buffer, length, handle);
+    auto param = new(nothrow) Parameter(parameterNumber, inOutType, sqlType, cType, buffer, length, handle, indicator);
     if (!param)
         return nullptr;
 
