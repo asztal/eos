@@ -114,7 +114,7 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
   
     Statement::AddBoundParameter(param);
 
-    return Undefined();
+    return param->handle_;
 }
 
 void Statement::AddBoundParameter(Parameter* param) {
