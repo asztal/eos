@@ -20,6 +20,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
     EOS_SET_METHOD(constructor_, "bindParameter", Statement, BindParameter, sig0);
+    EOS_SET_METHOD(constructor_, "unbindParameters", Statement, UnbindParameters, sig0);
     EOS_SET_METHOD(constructor_, "closeCursor", Statement, CloseCursor, sig0);
 }
 
@@ -106,7 +107,7 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
         decimalDigits,
         param->Buffer(),
         param->Length(),
-        param->LenBuffer());
+        param->Indicator());
 
     if (!SQL_SUCCEEDED(ret))
         return ThrowException(GetLastError());
@@ -138,10 +139,15 @@ Parameter* Statement::GetBoundParameter(SQLUSMALLINT parameterNumber) {
     return nullptr;
 }
 
-void Statement::ClearBoundParameters() {
+Handle<Value> Statement::UnbindParameters(const Arguments&) {
     EOS_DEBUG_METHOD();
 
+    if(!SQL_SUCCEEDED(SQLFreeStmt(GetHandle(), SQL_RESET_PARAMS)))
+        return ThrowException(GetLastError());
+
     bindings_.Clear();
+
+    return Undefined();
 }
 
 Handle<Value> Statement::CloseCursor(const Arguments& args) {
@@ -149,9 +155,9 @@ Handle<Value> Statement::CloseCursor(const Arguments& args) {
 
     SQLRETURN ret;
     if (args.Length() > 0 && args[0]->IsTrue())
-        ret = SQLCloseCursor(GetHandle());
+        ret = SQLCloseCursor(GetHandle()); // Can fail if no open cursor
     else
-        ret = SQLFreeStmt(GetHandle(), SQL_CLOSE);
+        ret = SQLFreeStmt(GetHandle(), SQL_CLOSE); // No error if no cursor
 
     if(!SQL_SUCCEEDED(ret))
         return ThrowException(GetLastError());

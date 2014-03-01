@@ -26,8 +26,10 @@ namespace Eos {
         Handle<Value> Cancel(const Arguments& args);
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);
-
+        
         Handle<Value> BindParameter(const Arguments& args);
+        Handle<Value> UnbindParameters(const Arguments& args);
+
         Handle<Value> CloseCursor(const Arguments& args);
 
     public:
@@ -39,7 +41,6 @@ namespace Eos {
         
         void AddBoundParameter(Parameter* param);
         Parameter* GetBoundParameter(SQLUSMALLINT parameterNumber);
-        void ClearBoundParameters();
 
     private:
         Persistent<Array> bindings_;
