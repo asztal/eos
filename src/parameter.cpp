@@ -62,19 +62,19 @@ namespace {
             if(!AllocatePrimitive<long>(jsValue->Int32Value(), buffer, handle))
                 return false;
             length = sizeof(long);
-            break;
+            return true;
 
         case SQL_C_DOUBLE:
             if(!AllocatePrimitive<double>(jsValue->NumberValue(), buffer, handle))
                 return false;
             length = sizeof(double);
-            break;
+            return true;
 
         case SQL_C_BIT:
             if(!AllocatePrimitive<bool>(jsValue->BooleanValue(), buffer, handle))
                 return false;
             length = sizeof(bool);
-            break;
+            return true;
 
         case SQL_C_TYPE_TIMESTAMP: {
             if (jsValue->IsDate()) {
@@ -96,8 +96,7 @@ namespace {
             } else {
                 return false;
             }
-
-            break;
+            return true;
         }
 
         case SQL_C_CHAR:
@@ -109,8 +108,7 @@ namespace {
             } else {
                 return false; 
             }
-
-            break;
+            return true;
 
         case SQL_C_WCHAR:
             if (jsValue->IsString()) {
@@ -121,6 +119,7 @@ namespace {
             } else {
                 return false; 
             }
+            return true;
 
         case SQL_C_BINARY:
             if (Buffer::HasInstance(jsValue) 
@@ -131,12 +130,11 @@ namespace {
                 if(JSBuffer::Unwrap(handle, buffer, length))
                     return false;
             }
+            return true;
 
         default:
             return false;
         }
-
-        return true;
     }
 
     bool AllocateOutputBuffer(SQLSMALLINT cType, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
