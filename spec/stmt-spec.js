@@ -31,6 +31,26 @@ describe("A newly created statement", function () {
         });
     });
 
+    describe("when binding 42 as the first parameter", function () {
+        it("should allow SQL_INTEGER and SQL_PARAM_INPUT", function () {
+            stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 42);
+        });
+
+        it("should allow SQL_REAL and SQL_PARAM_INPUT", function () {
+            stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_REAL, 0, 42);
+        });
+
+        afterEach(function (done) {
+            stmt.execDirect("select ? as x", function (err) {
+                if (err)
+                    return done(err);
+
+                stmt.closeCursor();
+                done();
+            });
+        });
+    });
+
     afterEach(function () {
         stmt.free();
         conn.disconnect(conn.free.bind(conn));
