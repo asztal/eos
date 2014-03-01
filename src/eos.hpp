@@ -175,7 +175,7 @@ namespace Eos {
 
     SQLSMALLINT GetSQLType(Handle<Value> jsValue);
     SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType);
-    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT targetType);
+    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT targetCType);
     
     template <typename T>
     inline Persistent<T> Persist(Handle<T> value) {

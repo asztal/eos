@@ -10,6 +10,10 @@ void Parameter::Init(Handle<Object> exports) {
     constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New());
     constructor_->SetClassName(String::NewSymbol("Parameter"));
     constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+
+    auto sig0 = Signature::New(constructor_, 0, nullptr);
+
+    EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
 }
 
 Parameter::Parameter
@@ -78,7 +82,7 @@ namespace {
 
         case SQL_C_TYPE_TIMESTAMP: {
             if (jsValue->IsDate()) {
-                long jsTime = jsValue.As<Date>()->NumberValue();
+                long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
                 time_t time = jsTime;
 
                 tm tm = *gmtime(&time);
@@ -193,6 +197,7 @@ Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutTyp
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
         // It's an output parameter, in a bound buffer.
         if (Buffer::HasInstance(jsValue) || JSBuffer::HasInstance(jsValue)) {
+            handle = jsValue.As<Object>();
             if(JSBuffer::Unwrap(jsValue.As<Object>(), buffer, length))
                 return nullptr;
         } else {
@@ -227,6 +232,24 @@ Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutTyp
     auto obj = constructor_->GetFunction()->NewInstance();
     param->Wrap(obj);
     return param;
+}
+
+Handle<Value> Parameter::GetValue(const Arguments& arg) {
+    if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
+        return ThrowError("GetValue can only be called for output parameters");
+
+    if (indicator_ == SQL_NULL_DATA)
+        return Null();
+
+    if (cType_ == SQL_C_BINARY) {
+        assert(indicator_ <= length_);
+
+        if (indicator_ == length_)
+            return bufferObject_;
+        return JSBuffer::Slice(bufferObject_, 0, indicator_);
+    }
+
+    return ConvertToJS(buffer_, indicator_, cType_);
 }
 
 // TODO GetValue() (for bound output parameters only)

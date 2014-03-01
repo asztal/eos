@@ -183,13 +183,15 @@ namespace Eos {
                 return;
 
             uv_rwlock_wrlock(&rwlock);
+            
+            auto cb = new Callback(reinterpret_cast<INotify*>(data));
 
 #if defined(DEBUG)
+            EOS_DEBUG(L"Callback to be added: 0x%p->Notify()", cb->target);
             PrintCallbackChain(L"About to add new callback");
 #endif 
 
             // Enqueue the callbacks, in the order that they happened.
-            auto cb = new Callback(reinterpret_cast<INotify*>(data));
             if (firstCallback) {
                 auto node = firstCallback;
                 while (node->next)

@@ -1,4 +1,4 @@
-var eos = require("../"),
+﻿var eos = require("../"),
     common = require("./common"),
     expect = common.expect,
     env = common.env,
@@ -32,7 +32,7 @@ describe("A newly created statement", function () {
         });
     });
 
-    function test(val, kind, type, digits, cmp, gdType) {
+    function testInputParam(val, kind, type, digits, cmp, gdType) {
         if (!cmp)
             cmp = function (x, y) { return x === y };
 
@@ -66,38 +66,51 @@ describe("A newly created statement", function () {
         });
     }
 
-    test("xyzzy", "SQL_PARAM_INPUT", "SQL_VARCHAR", 0, null, "SQL_VARCHAR");
-    test("xyzzy", "SQL_PARAM_INPUT", "SQL_VARCHAR", 0, null, "SQL_WVARCHAR");
-    test("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_VARCHAR");
-    test("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_WVARCHAR");
+    testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_VARCHAR", 0, null, "SQL_VARCHAR");
+    testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_VARCHAR", 0, null, "SQL_WVARCHAR");
+    testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_VARCHAR");
+    testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_WVARCHAR");
 
-    function closeTo(delta) {
-        return function (x, y) {
-            return Math.abs(x - y) < delta;
-        }
-    }
-
-    test(42, "SQL_PARAM_INPUT", "SQL_INTEGER", 0);
-    test(27.69, "SQL_PARAM_INPUT", "SQL_REAL", 2, closeTo(0.0001));
-    test(27.69, "SQL_PARAM_INPUT", "SQL_DOUBLE", 2, closeTo(0.0001));
-    test(27.69, "SQL_PARAM_INPUT", "SQL_FLOAT", 2, closeTo(0.0001));
-    test(27.69, "SQL_PARAM_INPUT", "SQL_INTEGER", 2, closeTo(0.7));
-
-    function bufEqual(x, y) {
-        if (!x && !y)
-            return true;
-        if (!x || !y)
-            return false;
-        if (x.length !== y.length)
-            return false;
-        for (var i = 0; i < x.length; i++)
-            if (x[i] !== y[i])
-                return false;
-        return true;
-    }
+    testInputParam(42, "SQL_PARAM_INPUT", "SQL_INTEGER", 0);
+    testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_REAL", 2, common.closeTo(0.0001));
+    testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_DOUBLE", 2, common.closeTo(0.0001));
+    testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_FLOAT", 2, common.closeTo(0.0001));
+    testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_INTEGER", 2, common.closeTo(0.7));
 
     var data = new Buffer([1,2,3,4,5,6,7,8,9], "binary");
-    test(data, "SQL_PARAM_INPUT", "SQL_BINARY", 0, bufEqual);
+    testInputParam(data, "SQL_PARAM_INPUT", "SQL_BINARY", 0, common.bufEqual);
+
+    function testOutputParam(sql, type, digits, buf, expected, cmp) {
+        if (!cmp)
+            cmp = function (x, y) { return x === y; };
+
+        describe("when executing " + sql, function () {
+            it("should allow a value of type " + type, function (done) {
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos[type], digits || 0, buf);
+                stmt.execDirect(sql, function (err, needData, hasData) {
+                    if (err)
+                        return done(err);
+                    if (needData)
+                        return done("Expected needData to be false");
+                    if (hasData)
+                        return done("Expected hasData to be false");
+
+                    var val = param.getValue();
+                    if (!cmp(expected, val))
+                        return done("Not equal: " + Utils.inspect(val) + " != " + Utils.inspect(expected));
+
+                    done();
+                });
+            });
+        });
+    }
+
+    var undefined = {}.x;
+    testOutputParam("select ? = 42", "SQL_INTEGER", 0, undefined, 42);
+    testOutputParam("select ? = 42", "SQL_REAL", 0, undefined, 42.0);
+    testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, new Buffer(200), 'xyzzy');
+    testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, new Buffer(200), 'This is a snowman: \u2603');
+    testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, new Buffer(200), data, common.bufEqual);
 
     afterEach(function () {
         stmt.free();

@@ -9,6 +9,10 @@ namespace Eos {
         
         static void Init(Handle<Object> exports);
 
+        Handle<Value> GetValue(const Arguments& args);
+
+    public:
+
         static Parameter* NewDataAtExec(SQLLEN length);
         static Parameter* Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT decimalDigits, Handle<Value> jsVal, SQLSMALLINT sqlType);
 

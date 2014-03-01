@@ -37,14 +37,15 @@ namespace Eos {
         void CallbackOverride(SQLRETURN ret) {
             EOS_DEBUG_METHOD();
 
-            if (!SQL_SUCCEEDED(ret) && ret != SQL_NEED_DATA)
+            if (!SQL_SUCCEEDED(ret) && ret != SQL_NEED_DATA && ret != SQL_PARAM_DATA_AVAILABLE)
                 return CallbackErrorOverride(ret);
 
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
                 Undefined(),
-                ret == SQL_NEED_DATA ? True() : False()
+                ret == SQL_NEED_DATA ? True() : False(),
+                ret == SQL_PARAM_DATA_AVAILABLE ? True() : False(),
             };
             
             GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);

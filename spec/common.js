@@ -20,7 +20,7 @@ module.exports = {
 
     env: new Eos.Environment(),
 
-    conn: function (cb) { 
+    conn: function conn(cb) { 
         var conn = this.env.newConnection();
         conn.connect(settings.connectionString, function(err) {
             if (err)
@@ -29,13 +29,32 @@ module.exports = {
         });
     },
 
-    stmt: function (cb) {
+    stmt: function stmt(cb) {
         this.conn(function (err, cb) {
             if (err)
                 return cb(err);
             var stmt = conn.newStatement();
             cb(null, stmt, conn);
         });
+    },
+
+    bufEqual: function bufEqual(x, y) {
+        if (!x && !y)
+            return true;
+        if (!x || !y)
+            return false;
+        if (x.length !== y.length)
+            return false;
+        for (var i = 0; i < x.length; i++)
+            if (x[i] !== y[i])
+                return false;
+        return true;
+    },
+
+    closeTo: function closeTo(delta) {
+        return function (x, y) {
+            return Math.abs(x - y) < delta;
+        }
     }
 };
 
