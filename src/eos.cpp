@@ -29,13 +29,36 @@ namespace Eos {
                 rec->Init(exports);
         }
 
-#define DEFINE_CONSTANT(name) exports->Set(String::NewSymbol(#name), Integer::New(name))
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT_OUTPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT_OUTPUT_STREAM);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_OUTPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_OUTPUT_STREAM);
         
-        DEFINE_CONSTANT(SQL_PARAM_INPUT);
-        DEFINE_CONSTANT(SQL_PARAM_INPUT_OUTPUT);
-        DEFINE_CONSTANT(SQL_PARAM_INPUT_OUTPUT_STREAM);
-        DEFINE_CONSTANT(SQL_PARAM_OUTPUT);
-        DEFINE_CONSTANT(SQL_PARAM_OUTPUT_STREAM);
+        NODE_DEFINE_CONSTANT(exports, SQL_CHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_VARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_LONGVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WLONGVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_DECIMAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_NUMERIC);
+        NODE_DEFINE_CONSTANT(exports, SQL_BIT);
+        NODE_DEFINE_CONSTANT(exports, SQL_TINYINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_SMALLINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_INTEGER);
+        NODE_DEFINE_CONSTANT(exports, SQL_BIGINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_REAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_FLOAT);
+        NODE_DEFINE_CONSTANT(exports, SQL_DOUBLE);
+        NODE_DEFINE_CONSTANT(exports, SQL_BINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_VARBINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_LONGVARBINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_DATE);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_TIME);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_TIMESTAMP);
+        //NODE_DEFINE_CONSTANT(exports, SQL_INTERVAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_GUID);
 
         InitError(exports);
     }
@@ -228,17 +251,24 @@ namespace Eos {
 
             HandleScope scope;
 
+            // http://stackoverflow.com/a/17936621/1794628
             auto code = 
             "function OdbcError(message, state, subErrors) {\
-                Error.apply(this, arguments);\
-                this.message = message;\
+                if (!(this instanceof OdbcError))\
+                    return new OdbcError(message, state, subErrors);\
+                var e = Error.call(this, message);\
+                e.name = this.name = 'OdbcError';\
+                this.stack = e.stack; \
+                this.message = e.message; \
                 if (state) \
                     this.state = state;\
                 if (subErrors)\
                     this.errors = subErrors;\
+                return this;\
             }\
-            OdbcError.prototype = new Error;\
-            OdbcError.prototype.name = OdbcError.name;\
+            var II = function() {};\
+            II.prototype = Error.prototype;\
+            OdbcError.prototype = new II();\
             OdbcError";
 
             odbcErrorConstructor = Persistent<Function>::New(Handle<Function>::Cast(Script::Compile(String::New(code))->Run()));
