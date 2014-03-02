@@ -65,7 +65,7 @@ Currently Eos uses only the notification method, but will be extended to support
    Environment.dataSources([type])
  * Callback parameters are declared as: Connection.connect(connectionString, callback([err], arg1, [arg2]))
    A parenthesised argument list follows the callback name, with square brackets for optional arguments as usual. All callbacks in Eos take an _error_ parameter as the first argument, which will be undefined when there is no error. Many callbacks take only an _error_ parameter, in which case the argument list here is omitted and the _error_ parameter is implied.
- * ODBC API calls are referred in bold, e.g. **SQLExecDirect**.
+ * ODBC API calls are referred to in bold, e.g. **SQLExecDirect**.
 
 ### Error Handling
 
