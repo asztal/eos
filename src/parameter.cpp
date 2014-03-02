@@ -250,14 +250,27 @@ Handle<Value> Parameter::GetValue(const Arguments& arg) {
         return Null();
 
     if (cType_ == SQL_C_BINARY) {
-        assert(indicator_ <= length_);
+        assert(indicator_ <= length_ || indicator_ == SQL_NO_TOTAL);
 
-        if (indicator_ == length_)
+        if (indicator_ == length_ || indicator_ == SQL_NO_TOTAL)
             return bufferObject_;
         return JSBuffer::Slice(bufferObject_, 0, indicator_);
     }
 
-    return ConvertToJS(buffer_, indicator_, cType_);
+    auto bytes = indicator_;
+    if (indicator_ == SQL_NO_TOTAL)
+        bytes = length_;
+
+    // Reduce bytes to accommodate null terminator
+    if (cType_ == SQL_C_CHAR && bytes == length_) {
+        assert(bytes > 0);
+        bytes -= sizeof(char);
+    } else if (cType_ == SQL_C_WCHAR && bytes == length_) {
+        assert(bytes > 0);
+        bytes -= sizeof(SQLWCHAR);
+    }
+
+    return ConvertToJS(buffer_, bytes, cType_);
 }
 
 Handle<Value> Parameter::GetValueLength(const Arguments& arg) {
