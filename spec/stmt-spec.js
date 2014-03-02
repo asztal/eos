@@ -95,10 +95,15 @@ describe("A newly created statement", function () {
                     if (hasData)
                         return done("Expected hasData to be false");
 
+                    if (param.index != 1)
+                        return done("Parameter index is wrong: " + param.index);
+                    if (param.kind != eos.SQL_PARAM_OUTPUT)
+                        return done("Parameter kind is wrong");
+
                     var val = param.getValue();
                     if (!cmp(expected, val))
                         return done("Not equal: " + Utils.inspect(val) + " != " + Utils.inspect(expected));
-
+                    
                     done();
                 });
             });

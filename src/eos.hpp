@@ -140,6 +140,20 @@ namespace Eos {
         }
     };
 
+    template <class T, Handle<Value> (T::*F)()> 
+    struct GetterWrapper {
+        static Handle<Value> Fun(Local<String> property, const AccessorInfo& info) {
+            HandleScope scope;
+
+            auto holder = info.Holder();
+            if (!T::Constructor()->HasInstance(holder))
+                return ThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
+
+            T* obj = ObjectWrap::Unwrap<T>(holder);
+            return scope.Close((obj->*F)());
+        }
+    };
+
     struct WStringValue {
         WStringValue(Handle<Value> value) : value(value) {}
         SQLWCHAR* operator*() { return reinterpret_cast<SQLWCHAR*>(*value); }
@@ -183,6 +197,7 @@ namespace Eos {
     }
 
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
+#define EOS_SET_GETTER(target, name, type, method) target->InstanceTemplate()->SetAccessor(String::NewSymbol(name), &::Eos::GetterWrapper<type, &type::method>::Fun)
 
     template <typename T> T min (const T& x, const T& y) { return x < y ? x : y; }
     template <typename T> T max (const T& x, const T& y) { return x > y ? x : y; }

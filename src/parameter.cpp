@@ -14,6 +14,16 @@ void Parameter::Init(Handle<Object> exports) {
     auto sig0 = Signature::New(constructor_, 0, nullptr);
 
     EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
+    EOS_SET_GETTER(constructor_, "value", Parameter, GetIndex);
+    EOS_SET_GETTER(constructor_, "kind", Parameter, GetKind);
+}
+
+Handle<Value> Parameter::GetIndex() {
+    return Integer::New(parameterNumber_);
+}
+
+Handle<Value> Parameter::GetKind() {
+    return Integer::New(inOutType_);
 }
 
 Parameter::Parameter
@@ -80,7 +90,7 @@ namespace {
             length = sizeof(bool);
             return true;
 
-        case SQL_C_TYPE_TIMESTAMP: {
+        case SQL_C_TYPE_TIMESTAMP:
             if (jsValue->IsDate()) {
                 long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
                 time_t time = jsTime;
@@ -101,7 +111,6 @@ namespace {
                 return false;
             }
             return true;
-        }
 
         case SQL_C_CHAR:
             if (jsValue->IsString()) {
@@ -252,10 +261,15 @@ Handle<Value> Parameter::GetValue(const Arguments& arg) {
     return ConvertToJS(buffer_, indicator_, cType_);
 }
 
-// TODO GetValue() (for bound output parameters only)
-// TODO GetLengthIndicator() (for bound output parameters only)
-// TODO GetIndex()
-// TODO GetKind()
+Handle<Value> Parameter::GetValueLength(const Arguments& arg) {
+    if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
+        return ThrowError("GetValue can only be called for output parameters");
+
+    if (indicator_ == SQL_NULL_DATA)
+        return Null();
+
+    return Integer::New(indicator_);
+}
 
 Parameter::~Parameter() {
     EOS_DEBUG_METHOD();

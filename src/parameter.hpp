@@ -10,6 +10,10 @@ namespace Eos {
         static void Init(Handle<Object> exports);
 
         Handle<Value> GetValue(const Arguments& args);
+        Handle<Value> GetValueLength(const Arguments& args);
+        
+        Handle<Value> GetIndex();
+        Handle<Value> GetKind();
 
     public:
 
@@ -28,6 +32,8 @@ namespace Eos {
         SQLSMALLINT CType() const { return cType_; }
 
         SQLLEN* Indicator() { return &indicator_; }
+
+        static Handle<FunctionTemplate> Constructor() { return constructor_; }
 
     private:
         static Persistent<FunctionTemplate> constructor_;
