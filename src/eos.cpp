@@ -187,7 +187,7 @@ namespace Eos {
             auto cb = new Callback(reinterpret_cast<INotify*>(data));
 
 #if defined(DEBUG)
-            EOS_DEBUG(L"Callback to be added: 0x%p->Notify()", cb->target);
+            EOS_DEBUG(L"Callback to be added: 0x%p->Notify()\n", cb->target);
             PrintCallbackChain(L"About to add new callback");
 #endif 
 
@@ -328,7 +328,7 @@ namespace Eos {
 
         HandleScope scope;
 
-        assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT);
+        assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_DESC);
         assert(handle != SQL_NULL_HANDLE);
 
         SQLINTEGER nFields;
