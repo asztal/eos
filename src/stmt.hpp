@@ -26,6 +26,8 @@ namespace Eos {
         Handle<Value> Cancel(const Arguments& args);
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);
+
+        Handle<Value> MoreResults(const Arguments& args);
         
         Handle<Value> BindParameter(const Arguments& args);
         Handle<Value> SetParameterName(const Arguments& args);

@@ -19,6 +19,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "cancel", Statement, Cancel, sig0);
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
+    EOS_SET_METHOD(constructor_, "moreResults", Statement, MoreResults, sig0);
     EOS_SET_METHOD(constructor_, "bindParameter", Statement, BindParameter, sig0);
     EOS_SET_METHOD(constructor_, "setParameterName", Statement, SetParameterName, sig0);
     EOS_SET_METHOD(constructor_, "unbindParameters", Statement, UnbindParameters, sig0);
@@ -76,11 +77,35 @@ Handle<Value> Statement::Cancel(const Arguments&) {
     return Undefined();
 }
 
+Handle<Value> Statement::MoreResults(const Arguments&) {
+    EOS_DEBUG_METHOD();
+
+    // TODO
+
+    return Undefined();
+}
+
 Handle<Value> Statement::BindParameter(const Arguments& args) {
     EOS_DEBUG_METHOD();
     
     if (args.Length() < 4)
-        return ThrowError("BindParameter expects 4 or 5 arguments");
+        return ThrowError("BindParameter expects 4, 5, or 6 arguments");
+    
+    if (!args[0]->IsInt32())
+        return ThrowTypeError("The 1st argument should be an integer");
+
+    if (!args[1]->IsInt32())
+        return ThrowTypeError("The 2nd argument should be an integer");
+
+    if (!args[2]->IsInt32())
+        return ThrowTypeError("The 3rd argument should be an integer");
+
+    // 0. parameter number (e.g. 2)
+    // 1. parameter kind (e.g. SQL_PARAM_INPUT)
+    // 2. SQL type (e.g. SQL_INTEGER)
+    // 3. decimal digits (e.g. 0)
+    // 4. value (e.g. 27)
+    // 5. buffer to use (e.g. new Buffer(4))
 
     auto parameterNumber = args[0]->Int32Value();
     if (parameterNumber < 1 || parameterNumber > USHRT_MAX)
@@ -91,12 +116,23 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
     SQLSMALLINT decimalDigits = args[3]->Int32Value();
 
     Handle<Value> jsValue = Undefined();
+    Handle<Object> bufferObject;
+
     if (args.Length() >= 5) 
         jsValue = args[4];
 
-    auto param = Parameter::Marshal(parameterNumber, inOutType, decimalDigits, jsValue, sqlType);
-    if (!param)
-        return ThrowError("The specified value is invalid.");
+    if (args.Length() >= 6 && !args[5]->IsUndefined()) {
+        if (!JSBuffer::HasInstance(args[5]) && !Buffer::HasInstance(args[5]))
+            return ThrowTypeError("Argument 5 should be a Buffer or SlowBuffer");
+
+        bufferObject = args[5].As<Object>();
+    }
+
+    auto jsParam = Parameter::Marshal(parameterNumber, inOutType, sqlType, decimalDigits, jsValue, bufferObject);
+    if (jsParam.IsEmpty() || !jsParam->IsObject()) // Exception
+        return jsParam;
+
+    auto param = Parameter::Unwrap(jsParam.As<Object>());
 
     auto ret = SQLBindParameter(
         GetHandle(),
@@ -115,7 +151,7 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
   
     Statement::AddBoundParameter(param);
 
-    return param->handle_;
+    return jsParam;
 }
 
 void Statement::AddBoundParameter(Parameter* param) {

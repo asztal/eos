@@ -79,7 +79,7 @@ SQLLEN Parameter::BytesInBuffer() const {
     if (indicator_ == SQL_DATA_AT_EXEC)
         return 0;
 
-    if (indicator_ == SQL_NO_TOTAL)
+    if (indicator_ > length_ || indicator_ == SQL_NO_TOTAL)
         bytes = length_;
 
     // Reduce bytes to accommodate null terminator
@@ -222,12 +222,14 @@ namespace {
     }
 }
 
-Parameter* Parameter::Marshal(
+Handle<Value> Parameter::Marshal(
     SQLUSMALLINT parameterNumber, 
     SQLSMALLINT inOutType, 
+    SQLSMALLINT sqlType,
     SQLSMALLINT decimalDigits, 
     Handle<Value> jsValue, 
-    SQLSMALLINT sqlType) 
+    Handle<Object> handle
+    ) 
 {
     EOS_DEBUG_METHOD_FMT(L"fType = %i, digits = %i", inOutType, decimalDigits);
 
@@ -235,11 +237,14 @@ Parameter* Parameter::Marshal(
 
     auto cType = GetCTypeForSQLType(sqlType);
 
-    Handle<Object> handle;
-    SQLPOINTER buffer;
-    SQLLEN length;
-    SQLLEN indicator;
+    SQLPOINTER buffer = nullptr;
+    SQLLEN length = 0;
+    SQLLEN indicator = 0;
     bool streamedInput = false, streamedOutput = false;
+
+    if (!handle.IsEmpty())
+        if(auto msg = JSBuffer::Unwrap(handle, buffer, length))
+            return ThrowError(msg);
 
     // The two cases where input buffer is bound
     if ((inOutType == SQL_PARAM_INPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) 
@@ -249,21 +254,20 @@ Parameter* Parameter::Marshal(
             buffer = nullptr;
             length = 0;
             indicator = SQL_NULL_DATA;
-        } else {
+        } else if(handle.IsEmpty()) {
             // It's an input parameter, and we have a value.
             if (!AllocateBoundInputParameter(cType, jsValue, buffer, length, handle))
-                return nullptr;
+                return ThrowError("Cannot allocate buffer for bound input or input/output parameter");
             indicator = length;
+        } else {
+            indicator = length;
+            // Bound input parameter, check that buffer is big enough
         }
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
         // It's an output parameter, in a bound buffer.
-        if (Buffer::HasInstance(jsValue) || JSBuffer::HasInstance(jsValue)) {
-            handle = jsValue.As<Object>();
-            if(JSBuffer::Unwrap(jsValue.As<Object>(), buffer, length))
-                return nullptr;
-        } else {
+        if (handle.IsEmpty()) {
             if (!AllocateOutputBuffer(cType, buffer, length, handle))
-                return nullptr;
+                return ThrowError("Cannot allocate buffer for output parameter");
         }
 
         indicator = length;
@@ -277,21 +281,21 @@ Parameter* Parameter::Marshal(
         indicator = SQL_DATA_AT_EXEC;
     } else {
         EOS_DEBUG(L"Unknown inOutType %i", inOutType);
-        return nullptr;
+        return ThrowError("Unknown parameter kind");
     }
 
     assert(buffer == nullptr || !handle.IsEmpty());
 
     auto param = new(nothrow) Parameter(parameterNumber, inOutType, sqlType, cType, buffer, length, handle, indicator);
     if (!param)
-        return nullptr;
+        return ThrowError("Out of memory allocating parameter structure");
 
     if (buffer == nullptr)
         param->buffer_ = param;
 
     auto obj = constructor_->GetFunction()->NewInstance();
     param->Wrap(obj);
-    return param;
+    return obj;
 }
 
 Handle<Value> Parameter::GetValue(const Arguments& arg) {

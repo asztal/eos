@@ -21,8 +21,13 @@ namespace Eos {
 
     public:
 
-        static Parameter* NewDataAtExec(SQLLEN length);
-        static Parameter* Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT decimalDigits, Handle<Value> jsVal, SQLSMALLINT sqlType);
+        static Handle<Value> Marshal(
+            SQLUSMALLINT parameterNumber, 
+            SQLSMALLINT inOutType,
+            SQLSMALLINT sqlType,
+            SQLSMALLINT decimalDigits, 
+            Handle<Value> jsVal,
+            Handle<Object> bufferObject);
 
         static Parameter* Unwrap(Handle<Object> obj) { return ObjectWrap::Unwrap<Parameter>(obj); }
 
