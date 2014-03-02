@@ -14,16 +14,12 @@ void Parameter::Init(Handle<Object> exports) {
     auto sig0 = Signature::New(constructor_, 0, nullptr);
 
     EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
+    
+    EOS_SET_GETTER(constructor_, "buffer", Parameter, GetBuffer);
+    EOS_SET_GETTER(constructor_, "bufferLength", Parameter, GetBufferLength);
+    EOS_SET_GETTER(constructor_, "bytesInBuffer", Parameter, GetBytesInBuffer);
     EOS_SET_GETTER(constructor_, "index", Parameter, GetIndex);
     EOS_SET_GETTER(constructor_, "kind", Parameter, GetKind);
-}
-
-Handle<Value> Parameter::GetIndex() {
-    return Integer::New(parameterNumber_);
-}
-
-Handle<Value> Parameter::GetKind() {
-    return Integer::New(inOutType_);
 }
 
 Parameter::Parameter
@@ -46,6 +42,56 @@ Parameter::Parameter
     , indicator_(indicator)
 {
     EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
+}
+
+Handle<Value> Parameter::GetBuffer() const {
+    return bufferObject_;
+}
+
+Handle<Value> Parameter::GetBufferLength() const {
+    return Integer::New(length_);
+}
+
+Handle<Value> Parameter::GetBytesInBuffer() const {
+    if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
+        return ThrowError("Parameter::GetBytesInBuffer can only be called for bound output parameters");
+
+    if (indicator_ == SQL_NULL_DATA)
+        return Null();
+
+    return Integer::New(BytesInBuffer());
+}
+
+Handle<Value> Parameter::GetIndex() const {
+    return Integer::New(parameterNumber_);
+}
+
+Handle<Value> Parameter::GetKind() const {
+    return Integer::New(inOutType_);
+}
+
+SQLLEN Parameter::BytesInBuffer() const {
+    auto bytes = indicator_;
+
+    // This should only happen for DAE input parameters
+    // before the statement has been executed or before
+    // the data has been supplied.
+    if (indicator_ == SQL_DATA_AT_EXEC)
+        return 0;
+
+    if (indicator_ == SQL_NO_TOTAL)
+        bytes = length_;
+
+    // Reduce bytes to accommodate null terminator
+    if (cType_ == SQL_C_CHAR && bytes == length_) {
+        assert(bytes >= 1);
+        bytes -= sizeof(char);
+    } else if (cType_ == SQL_C_WCHAR && bytes == length_) {
+        assert(bytes >= sizeof(SQLWCHAR));
+        bytes -= sizeof(SQLWCHAR);
+    }
+
+    return bytes;
 }
 
 namespace {
@@ -176,7 +222,13 @@ namespace {
     }
 }
 
-Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT decimalDigits, Handle<Value> jsValue, SQLSMALLINT sqlType) {
+Parameter* Parameter::Marshal(
+    SQLUSMALLINT parameterNumber, 
+    SQLSMALLINT inOutType, 
+    SQLSMALLINT decimalDigits, 
+    Handle<Value> jsValue, 
+    SQLSMALLINT sqlType) 
+{
     EOS_DEBUG_METHOD_FMT(L"fType = %i, digits = %i", inOutType, decimalDigits);
 
     assert(!jsValue.IsEmpty());
@@ -244,7 +296,7 @@ Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutTyp
 
 Handle<Value> Parameter::GetValue(const Arguments& arg) {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
-        return ThrowError("GetValue can only be called for output parameters");
+        return ThrowError("GetValue can only be called for bound output parameters");
 
     if (indicator_ == SQL_NULL_DATA)
         return Null();
@@ -257,30 +309,7 @@ Handle<Value> Parameter::GetValue(const Arguments& arg) {
         return JSBuffer::Slice(bufferObject_, 0, indicator_);
     }
 
-    auto bytes = indicator_;
-    if (indicator_ == SQL_NO_TOTAL)
-        bytes = length_;
-
-    // Reduce bytes to accommodate null terminator
-    if (cType_ == SQL_C_CHAR && bytes == length_) {
-        assert(bytes > 0);
-        bytes -= sizeof(char);
-    } else if (cType_ == SQL_C_WCHAR && bytes == length_) {
-        assert(bytes > 0);
-        bytes -= sizeof(SQLWCHAR);
-    }
-
-    return ConvertToJS(buffer_, bytes, cType_);
-}
-
-Handle<Value> Parameter::GetValueLength(const Arguments& arg) {
-    if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
-        return ThrowError("GetValue can only be called for output parameters");
-
-    if (indicator_ == SQL_NULL_DATA)
-        return Null();
-
-    return Integer::New(indicator_);
+    return ConvertToJS(buffer_, BytesInBuffer(), cType_);
 }
 
 Parameter::~Parameter() {

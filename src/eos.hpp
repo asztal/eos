@@ -140,7 +140,7 @@ namespace Eos {
         }
     };
 
-    template <class T, Handle<Value> (T::*F)()> 
+    template <class T, Handle<Value> (T::* F)() const> 
     struct GetterWrapper {
         static Handle<Value> Fun(Local<String> property, const AccessorInfo& info) {
             HandleScope scope;

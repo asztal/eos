@@ -10,10 +10,14 @@ namespace Eos {
         static void Init(Handle<Object> exports);
 
         Handle<Value> GetValue(const Arguments& args);
-        Handle<Value> GetValueLength(const Arguments& args);
+
+        SQLLEN BytesInBuffer() const;
         
-        Handle<Value> GetIndex();
-        Handle<Value> GetKind();
+        Handle<Value> GetBuffer() const;
+        Handle<Value> GetBufferLength() const;
+        Handle<Value> GetBytesInBuffer() const;
+        Handle<Value> GetIndex() const;
+        Handle<Value> GetKind() const;
 
     public:
 
