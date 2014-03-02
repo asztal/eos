@@ -70,13 +70,13 @@ describe("A newly created statement", function () {
     testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_VARCHAR", 0, null, "SQL_WVARCHAR");
     testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_VARCHAR");
     testInputParam("xyzzy", "SQL_PARAM_INPUT", "SQL_WVARCHAR", 0, null, "SQL_WVARCHAR");
-
+    
     testInputParam(42, "SQL_PARAM_INPUT", "SQL_INTEGER", 0);
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_REAL", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_DOUBLE", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_FLOAT", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_INTEGER", 2, common.closeTo(0.7));
-
+    
     var data = new Buffer([1,2,3,4,5,6,7,8,9], "binary");
     testInputParam(data, "SQL_PARAM_INPUT", "SQL_BINARY", 0, common.bufEqual);
 
@@ -151,6 +151,7 @@ describe("A newly created statement", function () {
     }
 
     testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43);
+    testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof");
 
     afterEach(function () {
         stmt.free();
