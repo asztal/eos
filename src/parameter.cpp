@@ -14,7 +14,7 @@ void Parameter::Init(Handle<Object> exports) {
     auto sig0 = Signature::New(constructor_, 0, nullptr);
 
     EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
-    EOS_SET_GETTER(constructor_, "value", Parameter, GetIndex);
+    EOS_SET_GETTER(constructor_, "index", Parameter, GetIndex);
     EOS_SET_GETTER(constructor_, "kind", Parameter, GetKind);
 }
 
