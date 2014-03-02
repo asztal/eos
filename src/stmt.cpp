@@ -20,6 +20,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
     EOS_SET_METHOD(constructor_, "bindParameter", Statement, BindParameter, sig0);
+    EOS_SET_METHOD(constructor_, "setParameterName", Statement, SetParameterName, sig0);
     EOS_SET_METHOD(constructor_, "unbindParameters", Statement, UnbindParameters, sig0);
     EOS_SET_METHOD(constructor_, "closeCursor", Statement, CloseCursor, sig0);
 }
@@ -124,6 +125,44 @@ void Statement::AddBoundParameter(Parameter* param) {
         bindings_ = Persist(Array::New());
 
     bindings_->Set(param->ParameterNumber(), param->handle_);
+}
+
+Handle<Value> Statement::SetParameterName(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    if (args.Length() != 2)
+        return ThrowError("Statement::SetParameterName requires 2 arguments");
+
+    if (!args[0]->IsInt32())
+        return ThrowError("The parameter number must be an integer");
+
+    auto parameterNumber = args[0]->Int32Value();
+    if (parameterNumber < 1 || parameterNumber >= USHRT_MAX)
+        return ThrowError("The parameter number must be between 1 and 65535 inclusive");
+
+    WStringValue name(args[1]);
+
+    SQLHDESC hIpd;
+
+    auto ret = SQLGetStmtAttr(
+        GetHandle(), 
+        SQL_ATTR_IMP_PARAM_DESC, 
+        &hIpd, 0, 0);
+
+    if (!SQL_SUCCEEDED(ret))
+        return ThrowException(GetLastError());
+
+    ret = SQLSetDescFieldW(
+        hIpd, 
+        parameterNumber, 
+        SQL_DESC_NAME, 
+        L"@x", //*name, 
+        SQL_NTS); //name.length());
+
+    if (!SQL_SUCCEEDED(ret))
+        return ThrowException(Eos::GetLastError(SQL_HANDLE_DESC, hIpd));
+
+    return Undefined();
 }
 
 Parameter* Statement::GetBoundParameter(SQLUSMALLINT parameterNumber) {

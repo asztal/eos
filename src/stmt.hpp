@@ -28,6 +28,7 @@ namespace Eos {
         Handle<Value> DescribeCol(const Arguments& args);
         
         Handle<Value> BindParameter(const Arguments& args);
+        Handle<Value> SetParameterName(const Arguments& args);
         Handle<Value> UnbindParameters(const Arguments& args);
 
         Handle<Value> CloseCursor(const Arguments& args);
