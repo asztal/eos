@@ -117,6 +117,41 @@ describe("A newly created statement", function () {
     testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, new Buffer(200), 'This is a snowman: \u2603');
     testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, new Buffer(200), data, common.bufEqual);
 
+    function testInputOutputParam(sql, type, digits, val, expected, cmp) {
+        if (!cmp)
+            cmp = function (x, y) { return x === y; };
+
+        describe("when executing " + sql, function () {
+            it("should allow a value of type " + type, function (done) {
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT_OUTPUT, eos[type], digits || 0, val);
+
+                stmt.setParameterName(1, "@x");
+
+                stmt.execDirect(sql, function (err, needData, hasData) {
+                    if (err)
+                        return done(err);
+                    if (needData)
+                        return done("Expected needData to be false");
+                    if (hasData)
+                        return done("Expected hasData to be false");
+
+                    if (param.index != 1)
+                        return done("Parameter index is wrong: " + param.index);
+                    if (param.kind != eos.SQL_PARAM_INPUT_OUTPUT)
+                        return done("Parameter kind is wrong");
+
+                    var result = param.getValue();
+                    if (!cmp(expected, result))
+                        return done("Not equal: " + Utils.inspect(result) + " != " + Utils.inspect(expected));
+
+                    done();
+                });
+            });
+        });
+    }
+
+    testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43);
+
     afterEach(function () {
         stmt.free();
         conn.disconnect(conn.free.bind(conn));
