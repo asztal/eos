@@ -116,6 +116,63 @@ namespace {
         return true;
     }
 
+    SQLLEN GetDesiredBufferLength(SQLSMALLINT cType) {
+        switch(cType) {
+        case SQL_C_SLONG: return sizeof(long);
+        case SQL_C_DOUBLE: return sizeof(double);
+        case SQL_C_BIT: return sizeof(bool);
+        case SQL_C_TYPE_TIMESTAMP: return sizeof(SQL_TIMESTAMP_STRUCT);
+        default: return 0;
+        }
+    }
+
+    bool FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
+        switch(cType) {
+        case SQL_C_SLONG:
+            *reinterpret_cast<long*>(buffer) = jsValue->Int32Value();
+            return true;
+
+        case SQL_C_DOUBLE:
+            *reinterpret_cast<double*>(buffer) = jsValue->NumberValue();
+            return true;
+
+        case SQL_C_BIT:
+            *reinterpret_cast<bool*>(buffer) = jsValue->BooleanValue();
+            return true;
+
+        case SQL_C_TYPE_TIMESTAMP:
+            if (!jsValue->IsDate())
+                return false;
+
+            {
+                long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
+                time_t time = jsTime;
+
+                tm tm = *gmtime(&time);
+                auto ts = reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
+                ts->year = tm.tm_year + 1900;
+                ts->month = tm.tm_mon + 1;
+                ts->day = tm.tm_mday;
+                ts->hour = tm.tm_hour;
+                ts->minute = tm.tm_min;
+                ts->second = tm.tm_sec;
+                ts->fraction = (jsTime % 1000) * 100;
+                return true;
+            }
+
+        case SQL_C_CHAR:
+            // TODO: something with String::Utf8Value
+            return false;
+
+        case SQL_C_WCHAR:
+            // TODO: something with WStringValue
+            return false;
+
+        default: 
+            return false;
+        }
+    }
+
     bool AllocateBoundInputParameter(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
         switch (cType) {
         case SQL_C_SLONG:
@@ -197,26 +254,15 @@ namespace {
     }
 
     bool AllocateOutputBuffer(SQLSMALLINT cType, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
-        switch (cType) {
-        case SQL_C_SLONG:
-            length = sizeof(long);
-            break;
-        case SQL_C_DOUBLE:
-            length = sizeof(double);
-            break;
-        case SQL_C_BIT:
-            length = sizeof(bool);
-            break;
-        case SQL_C_TYPE_TIMESTAMP:
-            length = sizeof(SQL_TIMESTAMP_STRUCT);
-            break;
-        default:
+        length = GetDesiredBufferLength(cType);
+        if (length <= 0)
             return false;
-        }
 
         handle = JSBuffer::New(length);
-        if(JSBuffer::Unwrap(handle, buffer, length))
+        if(auto msg = JSBuffer::Unwrap(handle, buffer, length)) {
+            EOS_DEBUG(L"%hs\n", msg);
             return false;
+        }
 
         return true;
     }
@@ -260,11 +306,19 @@ Handle<Value> Parameter::Marshal(
                 return ThrowError("Cannot allocate buffer for bound input or input/output parameter");
             indicator = length;
         } else {
-            indicator = length;
             // Bound input parameter, check that buffer is big enough
+            auto len2 = GetDesiredBufferLength(cType);
+            if (length < len2)
+                return ThrowError("The passed buffer is too small");
+
+            // Now fill the buffer
+            if (!FillInputBuffer(cType, jsValue, buffer, length))
+                return ThrowError("Something something something");
+            indicator = length;
         }
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
-        // It's an output parameter, in a bound buffer.
+        // It's an output parameter, in a bound buffer, or a DAE input parameter with a
+        // bound output buffer.
         if (handle.IsEmpty()) {
             if (!AllocateOutputBuffer(cType, buffer, length, handle))
                 return ThrowError("Cannot allocate buffer for output parameter");
