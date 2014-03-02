@@ -154,6 +154,20 @@ namespace Eos {
         }
     };
 
+    template <class T, Handle<Value> (T::*F)(Local<Value>)> 
+    struct SetterWrapper {
+        static Handle<Value> Fun(Local<String> property, Local<Value> value, const AccessorInfo& info) {
+            HandleScope scope;
+
+            auto holder = info.Holder();
+            if (!T::Constructor()->HasInstance(holder))
+                return ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
+
+            T* obj = ObjectWrap::Unwrap<T>(holder);
+            return scope.Close((obj->*F)(value));
+        }
+    };
+
     struct WStringValue {
         WStringValue(Handle<Value> value) : value(value) {}
         SQLWCHAR* operator*() { return reinterpret_cast<SQLWCHAR*>(*value); }
