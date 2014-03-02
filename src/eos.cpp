@@ -363,7 +363,7 @@ namespace Eos {
                 state, 
                 nullptr,
                 message, 
-                (SQLSMALLINT) sizeof(message),
+                static_cast<SQLSMALLINT>(sizeof(message) / sizeof(message[0])),
                 &messageLength);
 
             Local<Value> item;
