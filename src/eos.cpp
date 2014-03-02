@@ -344,8 +344,10 @@ namespace Eos {
         if (!SQL_SUCCEEDED(ret))
             return scope.Close(Exception::Error(String::New("Unknown ODBC error (error calling SQLGetDiagField)")));
 
-        if (nFields == 0)
+        if (nFields == 0) {
+            EOS_DEBUG(L"No error to return!\n");
             return scope.Close(Null());
+        }
 
         assert(nFields >= 0 && nFields < INT_MAX);
         Local<Array> errors = Array::New(nFields);
