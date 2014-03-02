@@ -18,6 +18,7 @@
           'src/stmt.execute.cpp',
           'src/stmt.fetch.cpp',
           'src/stmt.getData.cpp',
+          'src/stmt.moreResults.cpp',
           'src/stmt.numResultCols.cpp',
           'src/stmt.prepare.cpp'
       ],

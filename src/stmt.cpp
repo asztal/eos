@@ -77,14 +77,6 @@ Handle<Value> Statement::Cancel(const Arguments&) {
     return Undefined();
 }
 
-Handle<Value> Statement::MoreResults(const Arguments&) {
-    EOS_DEBUG_METHOD();
-
-    // TODO
-
-    return Undefined();
-}
-
 Handle<Value> Statement::BindParameter(const Arguments& args) {
     EOS_DEBUG_METHOD();
     
