@@ -228,8 +228,7 @@ Parameter* Parameter::Marshal(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutTyp
         return nullptr;
     }
 
-    assert(!handle.IsEmpty());
-    assert(buffer);
+    assert(buffer == nullptr || !handle.IsEmpty());
 
     auto param = new(nothrow) Parameter(parameterNumber, inOutType, sqlType, cType, buffer, length, handle, indicator);
     if (!param)
