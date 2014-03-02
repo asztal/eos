@@ -156,8 +156,8 @@ Handle<Value> Statement::SetParameterName(const Arguments& args) {
         hIpd, 
         parameterNumber, 
         SQL_DESC_NAME, 
-        L"@x", //*name, 
-        SQL_NTS); //name.length());
+        *name, 
+        name.length() * sizeof(**name));
 
     if (!SQL_SUCCEEDED(ret))
         return ThrowException(Eos::GetLastError(SQL_HANDLE_DESC, hIpd));
