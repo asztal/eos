@@ -350,7 +350,7 @@ namespace Eos {
         }
 
         assert(nFields >= 0 && nFields < INT_MAX);
-        Local<Array> errors = Array::New(nFields);
+        auto errors = Array::New(nFields);
         Local<String> resultMessage, resultState;
         Local<Object> result;
 
