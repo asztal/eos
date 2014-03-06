@@ -40,9 +40,13 @@ describe("A newly created statement", function () {
             it("should allow " + type + " and " + kind + (gdType ? " into " + gdType : ""), function (done) {
                 stmt.bindParameter(1, eos[kind], eos[type], 0, val);
 
-                stmt.execDirect("select ? as x", function (err) {
+                stmt.execDirect("select ? as x", function (err, needData, dataAvailable) {
                     if (err)
                         return done(err);
+                    if (needData)
+                        return done("Expected needData to be false");
+                    if (dataAvailable)
+                        return done("Expected dataAvailable to be false");
 
                     stmt.fetch(function (err, hasData) {
                         if (err)
@@ -80,13 +84,13 @@ describe("A newly created statement", function () {
     var data = new Buffer([1,2,3,4,5,6,7,8,9], "binary");
     testInputParam(data, "SQL_PARAM_INPUT", "SQL_BINARY", 0, common.bufEqual);
 
-    function testOutputParam(sql, type, digits, buf, expected, cmp) {
+    function testOutputParam(sql, type, digits, _val, expected, buf, cmp) {
         if (!cmp)
             cmp = function (x, y) { return x === y; };
 
         describe("when executing " + sql, function () {
             it("should allow a value of type " + type, function (done) {
-                var param = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos[type], digits || 0, buf);
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos[type], digits || 0, _val, buf);
                 stmt.execDirect(sql, function (err, needData, hasData) {
                     if (err)
                         return done(err);
@@ -113,17 +117,17 @@ describe("A newly created statement", function () {
     var undefined = {}.x;
     testOutputParam("select ? = 42", "SQL_INTEGER", 0, undefined, 42);
     testOutputParam("select ? = 42", "SQL_REAL", 0, undefined, 42.0);
-    testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, new Buffer(200), 'xyzzy');
-    testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, new Buffer(200), 'This is a snowman: \u2603');
-    testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, new Buffer(200), data, common.bufEqual);
+    testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, null, 'xyzzy', new Buffer(200));
+    testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, null, 'This is a snowman: \u2603', new Buffer(200));
+    testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, null, data, new Buffer(200), common.bufEqual);
 
-    function testInputOutputParam(sql, type, digits, val, expected, cmp) {
+    function testInputOutputParam(sql, type, digits, val, expected, buf, cmp) {
         if (!cmp)
             cmp = function (x, y) { return x === y; };
 
         describe("when executing " + sql, function () {
             it("should allow a value of type " + type, function (done) {
-                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT_OUTPUT, eos[type], digits || 0, val);
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT_OUTPUT, eos[type], digits || 0, val, buf);
 
                 stmt.setParameterName(1, "@x");
 
@@ -140,18 +144,26 @@ describe("A newly created statement", function () {
                     if (param.kind != eos.SQL_PARAM_INPUT_OUTPUT)
                         return done("Parameter kind is wrong");
 
-                    var result = param.getValue();
-                    if (!cmp(expected, result))
-                        return done("Not equal: " + Utils.inspect(result) + " != " + Utils.inspect(expected));
+                        var result = param.getValue();
+                        if (!cmp(expected, result))
+                            return done("Not equal: " + Utils.inspect(result) + " != " + Utils.inspect(expected));
 
-                    done();
+                        done();
+
+                    //stmt.fetch(function (err, needData, hasData) {
+                    //    if (needData)
+                    //        return done("Expected needData to be false");
+                    //    if (hasData)
+                    //        return done("Expected hasData to be false");
+
+                    //});
                 });
             });
         });
     }
 
-    testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43);
-    testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof");
+    testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43, new Buffer(200));
+    testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof", new Buffer(200));
 
     afterEach(function () {
         stmt.free();
