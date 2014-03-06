@@ -11,9 +11,10 @@ void Connection::Init(Handle<Object> exports)  {
     EosHandle::Init("Connection", constructor_, New);
 
     auto sig0 = Signature::New(constructor_);
-    EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
     EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
     EOS_SET_METHOD(constructor_, "browseConnect", Connection, BrowseConnect, sig0);
+    EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
+    EOS_SET_METHOD(constructor_, "nativeSql", Connection, NativeSql, sig0);
     EOS_SET_METHOD(constructor_, "disconnect", Connection, Disconnect, sig0);
 }
 
@@ -93,6 +94,60 @@ Handle<Value> Connection::NewStatement(const Arguments& args) {
 
     Handle<Value> argv[1] = { handle_ };
     return Statement::Constructor()->GetFunction()->NewInstance(1, argv);
+}
+
+Handle<Value> Connection::NativeSql(const Arguments& args) {
+    EOS_DEBUG_METHOD();
+
+    if (args.Length() < 1)
+        return ThrowError("Connection::NativeSql requires an argument");
+
+    WStringValue odbcSql(args[0]);
+    if (!*odbcSql)
+        return ThrowTypeError("The first argument must be a string or convertible to a string");
+
+    SQLWCHAR buffer[4096];
+    SQLINTEGER charsAvailable;
+
+    auto ret = SQLNativeSqlW(
+        GetHandle(),
+        *odbcSql, odbcSql.length(),
+        buffer, sizeof(buffer) / sizeof(buffer[0]),
+        &charsAvailable);
+
+    if (!SQL_SUCCEEDED(ret))
+        return ThrowException(GetLastError());
+
+    // Need more room for result (4095 chars not enough)
+    // >= because if they are equal, the \0 will displace the last char
+    if (charsAvailable >= sizeof(buffer) / sizeof(buffer[0])) {
+        auto buffer = new(nothrow) SQLWCHAR[charsAvailable + 1];
+        SQLINTEGER newCharsAvailable;
+
+        if (!buffer)
+            return ThrowError("Out of memory allocating space for native SQL");
+
+        ret = SQLNativeSqlW(
+            GetHandle(),
+            *odbcSql, odbcSql.length(),
+            buffer, charsAvailable, &newCharsAvailable);
+
+        if (!SQL_SUCCEEDED(ret)) {
+            delete[] buffer;
+            return ThrowException(GetLastError());
+        }
+
+        if (newCharsAvailable > charsAvailable) {
+            EOS_DEBUG(L"SQLNativeSql changed its mind");
+            newCharsAvailable = charsAvailable;
+        }
+
+        auto result = StringFromTChar(buffer, newCharsAvailable);
+        delete[] buffer;
+        return result;
+    } else {
+        return StringFromTChar(buffer, charsAvailable);
+    }
 }
 
 namespace { ClassInitializer<Connection> ci; }

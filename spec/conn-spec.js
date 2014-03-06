@@ -32,4 +32,43 @@ describe("A newly created connection", function () {
     it("should connect to common.connectionString", function (done) {
         common.conn(done);
     });
+
+    describe("nativeSql", function () {
+        it("should fail", function () {
+            try {
+                env.newConnection().nativeSql("{call increment(?)}");
+            } catch (e) {
+                if (e instanceof eos.OdbcError)
+                    return;
+                throw e;
+            }
+            throw "Didn't throw";
+        });
+    });
+});
+
+describe("For a connected connection", function () {
+    var conn;
+    
+    beforeEach(function (done) {
+        common.conn(function (err, c) {
+            if (err)
+                return done(err);
+            conn = c;
+            done();
+        });
+    });
+
+    describe("nativeSql", function () {
+        it("should succeed with an ODBC call statement", function () {
+            conn.nativeSql("{call increment(?)}");
+        });
+        it("should succeed with an ODBC select statement", function () {
+            conn.nativeSql("select { fn CONVERT (27, SQL_SMALLINT) }");
+        });
+    });
+
+    afterEach(function () {
+        conn.disconnect(conn.free.bind(conn));
+    });
 });

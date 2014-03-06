@@ -5,6 +5,8 @@
 #include "handle.hpp"
 
 namespace Eos {
+    struct Parameter;
+
     struct Statement: EosHandle {
         static void Init(Handle<Object> exports);
 
@@ -25,6 +27,12 @@ namespace Eos {
         Handle<Value> NumResultCols(const Arguments& args);
         Handle<Value> DescribeCol(const Arguments& args);
 
+        Handle<Value> MoreResults(const Arguments& args);
+        
+        Handle<Value> BindParameter(const Arguments& args);
+        Handle<Value> SetParameterName(const Arguments& args);
+        Handle<Value> UnbindParameters(const Arguments& args);
+
         Handle<Value> CloseCursor(const Arguments& args);
 
     public:
@@ -32,7 +40,14 @@ namespace Eos {
         // Non-JS methods
         static Persistent<FunctionTemplate> Constructor() { return constructor_; }
 
+    protected:
+        
+        void AddBoundParameter(Parameter* param);
+        Parameter* GetBoundParameter(SQLUSMALLINT parameterNumber);
+
     private:
+        Persistent<Array> bindings_;
+
         Connection* connection_;
 
         static Persistent<FunctionTemplate> constructor_;

@@ -270,11 +270,23 @@ A `Statement` is a wrapper around a `SQLHSTMT` and can be obtained via `conn.new
 
 Wraps **SQLPrepare**. Prepare the statement using given SQL, which may contain wildcards to be replaced by [bound parameters](http://msdn.microsoft.com/en-us/library/ms712522%28v=vs.85%29.aspx). If successful, the prepared statement can be executed using `Statement.execute()`.
 
-### Statement.execute(callback [err, needData]) 
+### Statement.execute(callback [err, needData, dataAvailable]) 
 
-Executes the prepared statement. If there are data-at-execution parameters whose values have not yet been specified, the callback will be called with _needData_ set to true. After successful execution, the cursor will be positioned before the first result set. To start reading the first result set (if there is any), call `Statement.fetch()`.
+Executes the prepared statement. 
+If there are data-at-execution parameters whose values have not yet been specified, the callback will be called 
+with _needData_ set to true. In this case, call `Statement.paramData()` to determine which input parameter is
+required (the order which data-at-execution parameters are requested is defined by the driver).
 
-### Statement.execDirect(sql, callback [err, needData])
+After successful execution, the cursor will be positioned before the first result set. 
+To start reading the first result set (if there is any), call `Statement.fetch()`.
+
+If there are streamed output or input/output parameters, _hasData_ may be true (provided that there are no 
+warning messages, result sets, or input parameters. If so, those must be dealt with first). In this case, call
+`Statement.paramData()` to determine which output paramater has data available (as with input parameters, the order 
+in which output parameters become available is defined by the driver). If there are result sets or warning messages,
+use `Statement.moreResults()` to retrieve streamed output parameters.
+
+### Statement.execDirect(sql, callback [err, needData, dataAvailable])
 
 Wraps **SQLExecDirect**. The same as `Statement.execute`, except there is no need to call `Statement.prepare()`.
 

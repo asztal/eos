@@ -29,6 +29,37 @@ namespace Eos {
                 rec->Init(exports);
         }
 
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT_OUTPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_INPUT_OUTPUT_STREAM);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_OUTPUT);
+        NODE_DEFINE_CONSTANT(exports, SQL_PARAM_OUTPUT_STREAM);
+        
+        NODE_DEFINE_CONSTANT(exports, SQL_CHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_VARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_LONGVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_WLONGVARCHAR);
+        NODE_DEFINE_CONSTANT(exports, SQL_DECIMAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_NUMERIC);
+        NODE_DEFINE_CONSTANT(exports, SQL_BIT);
+        NODE_DEFINE_CONSTANT(exports, SQL_TINYINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_SMALLINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_INTEGER);
+        NODE_DEFINE_CONSTANT(exports, SQL_BIGINT);
+        NODE_DEFINE_CONSTANT(exports, SQL_REAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_FLOAT);
+        NODE_DEFINE_CONSTANT(exports, SQL_DOUBLE);
+        NODE_DEFINE_CONSTANT(exports, SQL_BINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_VARBINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_LONGVARBINARY);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_DATE);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_TIME);
+        NODE_DEFINE_CONSTANT(exports, SQL_TYPE_TIMESTAMP);
+        //NODE_DEFINE_CONSTANT(exports, SQL_INTERVAL);
+        NODE_DEFINE_CONSTANT(exports, SQL_GUID);
+
         InitError(exports);
     }
 
@@ -152,13 +183,15 @@ namespace Eos {
                 return;
 
             uv_rwlock_wrlock(&rwlock);
+            
+            auto cb = new Callback(reinterpret_cast<INotify*>(data));
 
 #if defined(DEBUG)
+            EOS_DEBUG(L"Callback to be added: 0x%p->Notify()\n", cb->target);
             PrintCallbackChain(L"About to add new callback");
 #endif 
 
             // Enqueue the callbacks, in the order that they happened.
-            auto cb = new Callback(reinterpret_cast<INotify*>(data));
             if (firstCallback) {
                 auto node = firstCallback;
                 while (node->next)
@@ -220,17 +253,24 @@ namespace Eos {
 
             HandleScope scope;
 
+            // http://stackoverflow.com/a/17936621/1794628
             auto code = 
             "function OdbcError(message, state, subErrors) {\
-                Error.apply(this, arguments);\
-                this.message = message;\
+                if (!(this instanceof OdbcError))\
+                    return new OdbcError(message, state, subErrors);\
+                var e = Error.call(this, message);\
+                e.name = this.name = 'OdbcError';\
+                this.stack = e.stack; \
+                this.message = e.message; \
                 if (state) \
                     this.state = state;\
                 if (subErrors)\
                     this.errors = subErrors;\
+                return this;\
             }\
-            OdbcError.prototype = new Error;\
-            OdbcError.prototype.name = OdbcError.name;\
+            var II = function() {};\
+            II.prototype = Error.prototype;\
+            OdbcError.prototype = new II();\
             OdbcError";
 
             odbcErrorConstructor = Persistent<Function>::New(Handle<Function>::Cast(Script::Compile(String::New(code))->Run()));
@@ -288,7 +328,7 @@ namespace Eos {
 
         HandleScope scope;
 
-        assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT);
+        assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_DESC);
         assert(handle != SQL_NULL_HANDLE);
 
         SQLINTEGER nFields;
@@ -304,11 +344,13 @@ namespace Eos {
         if (!SQL_SUCCEEDED(ret))
             return scope.Close(Exception::Error(String::New("Unknown ODBC error (error calling SQLGetDiagField)")));
 
-        if (nFields == 0)
+        if (nFields == 0) {
+            EOS_DEBUG(L"No error to return!\n");
             return scope.Close(Null());
+        }
 
         assert(nFields >= 0 && nFields < INT_MAX);
-        Local<Array> errors = Array::New(nFields);
+        auto errors = Array::New(nFields);
         Local<String> resultMessage, resultState;
         Local<Object> result;
 
@@ -323,7 +365,7 @@ namespace Eos {
                 state, 
                 nullptr,
                 message, 
-                (SQLSMALLINT) sizeof(message),
+                static_cast<SQLSMALLINT>(sizeof(message) / sizeof(message[0])),
                 &messageLength);
 
             Local<Value> item;
@@ -379,6 +421,23 @@ namespace Eos {
         }
     }
 
+    SQLSMALLINT GetSQLType(Handle<Value> jsValue) {
+        if (jsValue->IsInt32())
+            return SQL_INTEGER;
+        if (jsValue->IsNumber())
+            return SQL_DOUBLE;
+        if (jsValue->IsBoolean())
+            return SQL_BIT;
+        if (jsValue->IsDate())
+            return SQL_TIMESTAMP;
+        if (Buffer::HasInstance(jsValue))
+            return SQL_LONGVARBINARY;
+        if (jsValue->IsObject() && JSBuffer::HasInstance(jsValue.As<Object>()))
+            return SQL_LONGVARBINARY;
+
+        return SQL_WCHAR;
+    }
+
     Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT cType) {
         switch(cType) {
         case SQL_C_SLONG:
@@ -429,6 +488,20 @@ namespace Eos {
         constructor_ = Persistent<Function>::New(val.As<Function>());
     }
 
+    Handle<Object> JSBuffer::New(Handle<String> string, Handle<String> enc) {
+        Handle<Value> argv[] = { string, enc };
+        return Constructor()->NewInstance(2, argv);
+    }
+
+    bool JSBuffer::HasInstance(Handle<Value> value) {
+        return value->IsObject() 
+            && HasInstance(value.As<Object>());
+    }
+    
+    bool JSBuffer::HasInstance(Handle<Object> value) {
+        return value->GetConstructor()->StrictEquals(JSBuffer::Constructor());
+    }
+
     Handle<Object> JSBuffer::New(size_t length) {
         assert(length <= UINT32_MAX);
 
@@ -437,6 +510,12 @@ namespace Eos {
     }
 
     const char* JSBuffer::Unwrap(Handle<Object> handle, SQLPOINTER& buffer, SQLLEN& bufferLength) {
+        if (Buffer::HasInstance(handle)) {
+            buffer = Buffer::Data(handle);
+            bufferLength = Buffer::Length(handle);
+            return nullptr;
+        }
+
         auto parent = handle->Get(String::NewSymbol("parent"));
         auto sliceOffset = handle->Get(String::NewSymbol("offset"))->Int32Value();
         auto sliceLength = handle->Get(String::NewSymbol("length"))->Int32Value();

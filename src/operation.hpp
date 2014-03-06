@@ -111,8 +111,9 @@ namespace Eos {
                 PrintStackTrace();
 #endif
                 // XXX There must be a better way...
-                Handle<Value>* argv = new Handle<Value>[args.Length()];
-                for (int i = 0; i < args.Length(); i++)
+                auto argc = args.Length();
+                auto argv = new Handle<Value>[argc];
+                for (int i = 0; i < argc; i++)
                     argv[i] = args[i];
                 auto ret = constructor_->GetFunction()->NewInstance(args.Length(), argv);
                 delete[] argv;
