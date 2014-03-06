@@ -31,7 +31,7 @@ namespace Eos {
                 ret == SQL_NO_DATA ? False() : True()
             };
             
-            GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
+            Callback(argv);
         }
 
         static const char* Name() { return "FetchOperation"; }

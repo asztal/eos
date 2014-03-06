@@ -41,7 +41,7 @@ namespace Eos {
                 ret == SQL_PARAM_DATA_AVAILABLE ? True() : False()
             };
             
-            GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
+            Callback(argv);
         }
     };
 }

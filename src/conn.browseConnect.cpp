@@ -52,7 +52,7 @@ namespace Eos {
 
             EOS_DEBUG(L"Result: %i, %ls\n", ret, outConnectionString_);
             
-            GetCallback()->Call(Context::GetCurrent()->Global(), 3, argv);
+            Callback(argv);
         }
 
     protected:

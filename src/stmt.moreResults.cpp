@@ -32,7 +32,7 @@ namespace Eos {
                 Boolean::New(ret == SQL_PARAM_DATA_AVAILABLE)
             };
             
-            GetCallback()->Call(Context::GetCurrent()->Global(), 2, argv);
+            Callback(argv);
         }
 
         static const char* Name() { return "MoreResultsOperation"; }
