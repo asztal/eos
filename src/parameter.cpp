@@ -126,23 +126,23 @@ namespace {
         }
     }
 
-    bool FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
+    SQLLEN FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
         switch(cType) {
         case SQL_C_SLONG:
             *reinterpret_cast<long*>(buffer) = jsValue->Int32Value();
-            return true;
+            return sizeof(long);
 
         case SQL_C_DOUBLE:
             *reinterpret_cast<double*>(buffer) = jsValue->NumberValue();
-            return true;
+            return sizeof(double);
 
         case SQL_C_BIT:
             *reinterpret_cast<bool*>(buffer) = jsValue->BooleanValue();
-            return true;
+            return sizeof(bool);
 
         case SQL_C_TYPE_TIMESTAMP:
             if (!jsValue->IsDate())
-                return false;
+                return 0;
 
             {
                 long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
@@ -157,19 +157,33 @@ namespace {
                 ts->minute = tm.tm_min;
                 ts->second = tm.tm_sec;
                 ts->fraction = (jsTime % 1000) * 100;
-                return true;
+                return sizeof(*ts);
             }
 
         case SQL_C_CHAR:
-            // TODO: something with String::Utf8Value
-            return false;
+            {
+                String::Utf8Value val(jsValue);
+                if (!*val)
+                    return false;
+
+                auto chars = min<size_t>(val.length(), length);
+                strncpy(reinterpret_cast<char*>(buffer), *val, chars); 
+                return chars;
+            }
 
         case SQL_C_WCHAR:
-            // TODO: something with WStringValue
-            return false;
+            {
+                WStringValue val(jsValue);
+                if (!*val)
+                    return false;
+
+                auto chars = min<size_t>(val.length(), length / sizeof(**val));
+                wcsncpy(reinterpret_cast<wchar_t*>(buffer), *val, chars); 
+                return chars * sizeof(**val);
+            }
 
         default: 
-            return false;
+            return 0;
         }
     }
 
@@ -311,10 +325,10 @@ Handle<Value> Parameter::Marshal(
             if (length < len2)
                 return ThrowError("The passed buffer is too small");
 
-            // Now fill the buffer
-            if (!FillInputBuffer(cType, jsValue, buffer, length))
-                return ThrowError("Something something something");
-            indicator = length;
+            // Now fill the buffer with the marhsalled value
+            indicator = FillInputBuffer(cType, jsValue, buffer, length);
+            if (!indicator)
+                return ThrowError("Cannot place parameter value into buffer");
         }
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
         // It's an output parameter, in a bound buffer, or a DAE input parameter with a
