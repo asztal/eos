@@ -3,6 +3,7 @@
     {
       'target_name' : 'eos',
       'sources' : [ 
+        'src/buffer.hpp', 'src/buffer.cpp',
         'src/handle.hpp', 'src/handle.cpp',
         'src/eos.hpp', 'src/eos.cpp',
         'src/env.hpp', 'src/env.cpp',
@@ -22,6 +23,7 @@
           'src/stmt.numResultCols.cpp',
           'src/stmt.paramData.cpp'
           'src/stmt.prepare.cpp'
+          'src/stmt.putData.cpp'
       ],
       'defines' : [
         'UNICODE', 'DEBUG'

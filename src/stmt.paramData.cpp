@@ -5,7 +5,9 @@ using namespace Eos;
 
 namespace Eos {
     struct ParamDataOperation : Operation<Statement, ParamDataOperation> {
-        ParamDataOperation::ParamDataOperation() {
+        ParamDataOperation::ParamDataOperation() 
+            : parameter_(nullptr)
+        {
             EOS_DEBUG_METHOD();
         }
 

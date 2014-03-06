@@ -28,6 +28,7 @@ namespace Eos {
         Handle<Value> DescribeCol(const Arguments& args);
 
         Handle<Value> ParamData(const Arguments& args);
+        Handle<Value> PutData(const Arguments& args);
         Handle<Value> MoreResults(const Arguments& args);
         
         Handle<Value> BindParameter(const Arguments& args);
