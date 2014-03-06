@@ -20,6 +20,7 @@
           'src/stmt.getData.cpp',
           'src/stmt.moreResults.cpp',
           'src/stmt.numResultCols.cpp',
+          'src/stmt.paramData.cpp'
           'src/stmt.prepare.cpp'
       ],
       'defines' : [

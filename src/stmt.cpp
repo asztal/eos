@@ -20,6 +20,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(constructor_, "numResultCols", Statement, NumResultCols, sig0);
     EOS_SET_METHOD(constructor_, "describeCol", Statement, DescribeCol, sig0);
     EOS_SET_METHOD(constructor_, "moreResults", Statement, MoreResults, sig0);
+    EOS_SET_METHOD(constructor_, "paramData", Statement, ParamData, sig0);
     EOS_SET_METHOD(constructor_, "bindParameter", Statement, BindParameter, sig0);
     EOS_SET_METHOD(constructor_, "setParameterName", Statement, SetParameterName, sig0);
     EOS_SET_METHOD(constructor_, "unbindParameters", Statement, UnbindParameters, sig0);
