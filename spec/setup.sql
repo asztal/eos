@@ -1,3 +1,9 @@
+use master
+go
+
+drop database EOS 
+go
+
 create database EOS
 go
 
@@ -11,3 +17,4 @@ go
 create procedure reverse (@x varchar(max) output) as 
 	set @x = reverse(@x)
 go
+
