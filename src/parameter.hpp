@@ -9,7 +9,9 @@ namespace Eos {
         
         static void Init(Handle<Object> exports);
 
-        Handle<Value> GetValue(const Arguments& args);
+        Handle<Value> GetValue() const;
+        void SetValue(Local<Value> value);
+        Handle<Value> TrySetValue(Local<Value> value);
 
         SQLLEN BytesInBuffer() const;
         
@@ -31,16 +33,20 @@ namespace Eos {
 
         static Parameter* Unwrap(Handle<Object> obj) { return ObjectWrap::Unwrap<Parameter>(obj); }
 
-        void* Buffer() const { return buffer_; }
-        SQLLEN Length() const { return length_; }
-        Handle<Object> BufferObject() { return bufferObject_; }
-        
-        SQLUSMALLINT ParameterNumber() const { return parameterNumber_; }
-        SQLSMALLINT InOutType() const { return inOutType_; }
-        SQLSMALLINT SQLType() const { return sqlType_; }
-        SQLSMALLINT CType() const { return cType_; }
+        void Ref() { EOS_DEBUG_METHOD(); ObjectWrap::Ref(); }
+        void Unref() { EOS_DEBUG_METHOD(); ObjectWrap::Unref(); }
 
-        SQLLEN* Indicator() { return &indicator_; }
+        void* Buffer() const throw() { return buffer_; }
+        SQLLEN Length() const throw() { return length_; }
+        Handle<Object> BufferObject() const throw() { return bufferObject_; }
+        
+        SQLUSMALLINT ParameterNumber() const throw() { return parameterNumber_; }
+        SQLSMALLINT InOutType() const throw() { return inOutType_; }
+        SQLSMALLINT SQLType() const throw() { return sqlType_; }
+        SQLSMALLINT CType() const throw() { return cType_; }
+
+        const SQLLEN& Indicator() const throw() { return indicator_; }
+        SQLLEN& Indicator() throw() { return indicator_; }
 
         static Handle<FunctionTemplate> Constructor() { return constructor_; }
 

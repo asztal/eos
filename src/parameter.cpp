@@ -13,8 +13,7 @@ void Parameter::Init(Handle<Object> exports) {
 
     auto sig0 = Signature::New(constructor_, 0, nullptr);
 
-    EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
-    
+    EOS_SET_ACCESSOR(constructor_, "value", Parameter, GetValue, SetValue);
     EOS_SET_GETTER(constructor_, "buffer", Parameter, GetBuffer);
     EOS_SET_GETTER(constructor_, "bufferLength", Parameter, GetBufferLength);
     EOS_SET_GETTER(constructor_, "bytesInBuffer", Parameter, GetBytesInBuffer);
@@ -100,8 +99,7 @@ Handle<Value> Parameter::Marshal(
     SQLSMALLINT sqlType,
     SQLSMALLINT decimalDigits, 
     Handle<Value> jsValue, 
-    Handle<Object> handle
-    ) 
+    Handle<Object> handle) 
 {
     EOS_DEBUG_METHOD_FMT(L"fType = %i, digits = %i", inOutType, decimalDigits);
 
@@ -178,7 +176,7 @@ Handle<Value> Parameter::Marshal(
     return obj;
 }
 
-Handle<Value> Parameter::GetValue(const Arguments& arg) {
+Handle<Value> Parameter::GetValue() const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
         return ThrowError("GetValue can only be called for bound output parameters");
 
@@ -194,6 +192,35 @@ Handle<Value> Parameter::GetValue(const Arguments& arg) {
     }
 
     return ConvertToJS(buffer_, BytesInBuffer(), cType_);
+}
+
+Handle<Value> Parameter::TrySetValue(Local<Value> value) {
+    if (value->IsNull()) {
+        indicator_ = SQL_NULL_DATA;
+        return True();
+    }
+
+    if (bufferObject_.IsEmpty()) {
+        if (!AllocateBoundInputParameter(cType_, value, buffer_, length_, bufferObject_)) {
+            return ThrowError("Cannot allocate buffer for parameter data");
+        }
+        indicator_ = length_;
+    } else {
+        auto desiredLength = GetDesiredBufferLength(cType_);
+        if (length_ < desiredLength) {
+            return ThrowError("The parameter data buffer is too small to contain the value");
+        }
+
+        indicator_ = FillInputBuffer(cType_, value, buffer_, length_);
+        if (!indicator_)
+            return ThrowError("Cannot place parameter value into buffer");
+    }
+
+    return True();
+}
+
+void Parameter::SetValue(Local<Value> value) {
+    TrySetValue(value);
 }
 
 Parameter::~Parameter() {
