@@ -62,9 +62,6 @@ private:
 #define EOS_DEBUG_NOISY(...) wprintf(__VA_ARGS__)
 #endif
 
-#if defined(UNICODE)
-#endif
-
 namespace Eos {
     // A linked list of initialisers to be called when the module is initialised.
     struct ClassInitializerRecord {
@@ -154,17 +151,17 @@ namespace Eos {
         }
     };
 
-    template <class T, Handle<Value> (T::*F)(Local<Value>)> 
+    template <class T, void (T::*F)(Local<Value>)> 
     struct SetterWrapper {
-        static Handle<Value> Fun(Local<String> property, Local<Value> value, const AccessorInfo& info) {
+        static void Fun(Local<String> property, Local<Value> value, const AccessorInfo& info) {
             HandleScope scope;
 
             auto holder = info.Holder();
             if (!T::Constructor()->HasInstance(holder))
-                return ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
-
-            T* obj = ObjectWrap::Unwrap<T>(holder);
-            return scope.Close((obj->*F)(value));
+                // I don't actually know what happens if one throws here
+                ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
+            else
+                (ObjectWrap::Unwrap<T>(holder)->*F)(value);
         }
     };
 
@@ -212,6 +209,7 @@ namespace Eos {
 
 #define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
 #define EOS_SET_GETTER(target, name, type, method) target->InstanceTemplate()->SetAccessor(String::NewSymbol(name), &::Eos::GetterWrapper<type, &type::method>::Fun)
+#define EOS_SET_ACCESSOR(target, name, type, getter, setter) target->InstanceTemplate()->SetAccessor(String::NewSymbol(name), &::Eos::GetterWrapper<type, &type::getter>::Fun, &::Eos::SetterWrapper<type, &type::setter>::Fun)
 
     template <typename T> T min (const T& x, const T& y) { return x < y ? x : y; }
     template <typename T> T max (const T& x, const T& y) { return x > y ? x : y; }

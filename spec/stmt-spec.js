@@ -165,6 +165,74 @@ describe("A newly created statement", function () {
     testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43, new Buffer(200));
     testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof", new Buffer(200));
 
+    function testDAEInputParam(val, type, digits, cmp, gdType) {
+        if (!cmp)
+            cmp = function (x, y) { return x === y; };
+
+        describe("when binding " + Utils.inspect(val) + " as the first parameter with data at execution", function () {
+            it("should allow " + type + (gdType ? " into " + gdType : ""), function (done) {
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos[type], 0);
+
+                stmt.execDirect("select ? as x", function (err, needData, dataAvailable) {
+                    if (err)
+                        return done(err);
+                    if (!needData)
+                        return done("Expected needData to be true");
+                    if (dataAvailable)
+                        return done("Expected dataAvailable to be false");
+
+                    stmt.paramData(function (err, dae) {
+                        if (err)
+                            return done(err);
+
+                        if (!dae)
+                            return done("Expected a DAE parameters to be required");
+                        if (dae.index != param.index)
+                            return done("Expected DAE parameter index to match input parameter");
+
+                        stmt.putData(dae.index, val, function (err) {
+                            if (err)
+                                return done(err);
+
+                            stmt.paramData(function (err, newDae) {
+                                if (err)
+                                    return done(err);
+
+                                if (newDae)
+                                    return done("Expected DAE for this parameter to be completed and no more parameters to be required");
+
+                                stmt.fetch(function (err, hasData) {
+                                    if (err)
+                                        return done(err);
+                                    if (!hasData)
+                                        return done("No results");
+
+                                    var val = param.getValue();
+
+                                    stmt.getData(1, eos[gdType || type], null, false, function (err, result) {
+                                        if (err)
+                                            return done(err);
+
+                                        if (!cmp(result, val))
+                                            return done("Not equal: " + result + " != " + val);
+
+                                        stmt.closeCursor();
+                                        done();
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    testDAEInputParam(27.42, "SQL_REAL", 0, common.closeTo(0.0001));
+    testDAEInputParam(42.69, "SQL_REAL", 0, null, "SQL_INTEGER", common.closeTo(0.7));
+    testDAEInputParam(69, "SQL_INTEGER", 0);
+    testDAEInputParam(1142, "SQL_INTEGER", 0, null, "SQL_REAL");
+
     afterEach(function () {
         stmt.free();
         conn.disconnect(conn.free.bind(conn));

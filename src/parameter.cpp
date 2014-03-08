@@ -1,8 +1,8 @@
 #include "parameter.hpp"
-
-#include <ctime>
+#include "buffer.hpp"
 
 using namespace Eos;
+using namespace Eos::Buffers;
 
 Persistent<FunctionTemplate> Parameter::constructor_;
 
@@ -13,8 +13,7 @@ void Parameter::Init(Handle<Object> exports) {
 
     auto sig0 = Signature::New(constructor_, 0, nullptr);
 
-    EOS_SET_METHOD(constructor_, "getValue", Parameter, GetValue, sig0);
-    
+    EOS_SET_ACCESSOR(constructor_, "value", Parameter, GetValue, SetValue);
     EOS_SET_GETTER(constructor_, "buffer", Parameter, GetBuffer);
     EOS_SET_GETTER(constructor_, "bufferLength", Parameter, GetBufferLength);
     EOS_SET_GETTER(constructor_, "bytesInBuffer", Parameter, GetBytesInBuffer);
@@ -94,202 +93,13 @@ SQLLEN Parameter::BytesInBuffer() const {
     return bytes;
 }
 
-namespace {
-    bool Allocate(SQLLEN length, SQLPOINTER& buffer, Handle<Object>& handle) {
-        handle = JSBuffer::New(length);
-        if (handle.IsEmpty()) {
-            EOS_DEBUG(L"Failed to allocate parameter buffer\n");
-            buffer = nullptr;
-            return false;
-        }
-
-        JSBuffer::Unwrap(handle, buffer, length);
-        return true;
-    }
-
-    template<class T>
-    bool AllocatePrimitive(const T& value, SQLPOINTER& buffer, Handle<Object>& handle) {
-        if (!Allocate(sizeof(T), buffer, handle))
-            return false;
-
-        *reinterpret_cast<T*>(buffer) = value;
-        return true;
-    }
-
-    SQLLEN GetDesiredBufferLength(SQLSMALLINT cType) {
-        switch(cType) {
-        case SQL_C_SLONG: return sizeof(long);
-        case SQL_C_DOUBLE: return sizeof(double);
-        case SQL_C_BIT: return sizeof(bool);
-        case SQL_C_TYPE_TIMESTAMP: return sizeof(SQL_TIMESTAMP_STRUCT);
-        default: return 0;
-        }
-    }
-
-    SQLLEN FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
-        switch(cType) {
-        case SQL_C_SLONG:
-            *reinterpret_cast<long*>(buffer) = jsValue->Int32Value();
-            return sizeof(long);
-
-        case SQL_C_DOUBLE:
-            *reinterpret_cast<double*>(buffer) = jsValue->NumberValue();
-            return sizeof(double);
-
-        case SQL_C_BIT:
-            *reinterpret_cast<bool*>(buffer) = jsValue->BooleanValue();
-            return sizeof(bool);
-
-        case SQL_C_TYPE_TIMESTAMP:
-            if (!jsValue->IsDate())
-                return 0;
-
-            {
-                long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
-                time_t time = jsTime;
-
-                tm tm = *gmtime(&time);
-                auto ts = reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
-                ts->year = tm.tm_year + 1900;
-                ts->month = tm.tm_mon + 1;
-                ts->day = tm.tm_mday;
-                ts->hour = tm.tm_hour;
-                ts->minute = tm.tm_min;
-                ts->second = tm.tm_sec;
-                ts->fraction = (jsTime % 1000) * 100;
-                return sizeof(*ts);
-            }
-
-        case SQL_C_CHAR:
-            {
-                String::Utf8Value val(jsValue);
-                if (!*val)
-                    return false;
-
-                auto chars = min<size_t>(val.length(), length);
-                strncpy(reinterpret_cast<char*>(buffer), *val, chars); 
-                return chars;
-            }
-
-        case SQL_C_WCHAR:
-            {
-                WStringValue val(jsValue);
-                if (!*val)
-                    return false;
-
-                auto chars = min<size_t>(val.length(), length / sizeof(**val));
-                wcsncpy(reinterpret_cast<wchar_t*>(buffer), *val, chars); 
-                return chars * sizeof(**val);
-            }
-
-        default: 
-            return 0;
-        }
-    }
-
-    bool AllocateBoundInputParameter(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
-        switch (cType) {
-        case SQL_C_SLONG:
-            if(!AllocatePrimitive<long>(jsValue->Int32Value(), buffer, handle))
-                return false;
-            length = sizeof(long);
-            return true;
-
-        case SQL_C_DOUBLE:
-            if(!AllocatePrimitive<double>(jsValue->NumberValue(), buffer, handle))
-                return false;
-            length = sizeof(double);
-            return true;
-
-        case SQL_C_BIT:
-            if(!AllocatePrimitive<bool>(jsValue->BooleanValue(), buffer, handle))
-                return false;
-            length = sizeof(bool);
-            return true;
-
-        case SQL_C_TYPE_TIMESTAMP:
-            if (jsValue->IsDate()) {
-                long jsTime = static_cast<long>(jsValue.As<Date>()->NumberValue());
-                time_t time = jsTime;
-
-                tm tm = *gmtime(&time);
-                SQL_TIMESTAMP_STRUCT ts = { 0 };
-                ts.year = tm.tm_year + 1900;
-                ts.month = tm.tm_mon + 1;
-                ts.day = tm.tm_mday;
-                ts.hour = tm.tm_hour;
-                ts.minute = tm.tm_min;
-                ts.second = tm.tm_sec;
-                ts.fraction = (jsTime % 1000) * 100;
-
-                if (!AllocatePrimitive<SQL_TIMESTAMP_STRUCT>(ts, buffer, handle))
-                    return false;
-            } else {
-                return false;
-            }
-            return true;
-
-        case SQL_C_CHAR:
-            if (jsValue->IsString()) {
-                handle = JSBuffer::New(jsValue.As<String>(), String::NewSymbol("utf8"));
-                if (handle.IsEmpty())
-                    return false;
-                JSBuffer::Unwrap(handle, buffer, length);
-            } else {
-                return false; 
-            }
-            return true;
-
-        case SQL_C_WCHAR:
-            if (jsValue->IsString()) {
-                handle = JSBuffer::New(jsValue.As<String>(), String::NewSymbol("ucs2"));
-                if (handle.IsEmpty())
-                    return false;
-                JSBuffer::Unwrap(handle, buffer, length);
-            } else {
-                return false; 
-            }
-            return true;
-
-        case SQL_C_BINARY:
-            if (Buffer::HasInstance(jsValue) 
-                || (jsValue->IsObject() 
-                    && JSBuffer::Constructor()->StrictEquals(jsValue.As<Object>()->GetConstructor()))) 
-            {
-                handle = jsValue.As<Object>();
-                if(JSBuffer::Unwrap(handle, buffer, length))
-                    return false;
-            }
-            return true;
-
-        default:
-            return false;
-        }
-    }
-
-    bool AllocateOutputBuffer(SQLSMALLINT cType, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
-        length = GetDesiredBufferLength(cType);
-        if (length <= 0)
-            return false;
-
-        handle = JSBuffer::New(length);
-        if(auto msg = JSBuffer::Unwrap(handle, buffer, length)) {
-            EOS_DEBUG(L"%hs\n", msg);
-            return false;
-        }
-
-        return true;
-    }
-}
-
 Handle<Value> Parameter::Marshal(
     SQLUSMALLINT parameterNumber, 
     SQLSMALLINT inOutType, 
     SQLSMALLINT sqlType,
     SQLSMALLINT decimalDigits, 
     Handle<Value> jsValue, 
-    Handle<Object> handle
-    ) 
+    Handle<Object> handle) 
 {
     EOS_DEBUG_METHOD_FMT(L"fType = %i, digits = %i", inOutType, decimalDigits);
 
@@ -366,7 +176,7 @@ Handle<Value> Parameter::Marshal(
     return obj;
 }
 
-Handle<Value> Parameter::GetValue(const Arguments& arg) {
+Handle<Value> Parameter::GetValue() const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
         return ThrowError("GetValue can only be called for bound output parameters");
 
@@ -382,6 +192,35 @@ Handle<Value> Parameter::GetValue(const Arguments& arg) {
     }
 
     return ConvertToJS(buffer_, BytesInBuffer(), cType_);
+}
+
+Handle<Value> Parameter::TrySetValue(Local<Value> value) {
+    if (value->IsNull()) {
+        indicator_ = SQL_NULL_DATA;
+        return True();
+    }
+
+    if (bufferObject_.IsEmpty()) {
+        if (!AllocateBoundInputParameter(cType_, value, buffer_, length_, bufferObject_)) {
+            return ThrowError("Cannot allocate buffer for parameter data");
+        }
+        indicator_ = length_;
+    } else {
+        auto desiredLength = GetDesiredBufferLength(cType_);
+        if (length_ < desiredLength) {
+            return ThrowError("The parameter data buffer is too small to contain the value");
+        }
+
+        indicator_ = FillInputBuffer(cType_, value, buffer_, length_);
+        if (!indicator_)
+            return ThrowError("Cannot place parameter value into buffer");
+    }
+
+    return True();
+}
+
+void Parameter::SetValue(Local<Value> value) {
+    TrySetValue(value);
 }
 
 Parameter::~Parameter() {
