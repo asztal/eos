@@ -138,7 +138,7 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
         decimalDigits,
         param->Buffer(),
         param->Length(),
-        param->Indicator());
+        &param->Indicator());
 
     if (!SQL_SUCCEEDED(ret))
         return ThrowException(GetLastError());
