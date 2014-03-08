@@ -38,7 +38,7 @@ describe("A newly created statement", function () {
 
         describe("when binding " + Utils.inspect(val) + " as the first parameter", function () {
             it("should allow " + type + " and " + kind + (gdType ? " into " + gdType : ""), function (done) {
-                stmt.bindParameter(1, eos[kind], eos[type], 0, val);
+                stmt.bindParameter(1, eos[kind], eos[type], null, 0, val);
 
                 stmt.execDirect("select ? as x", function (err, needData, dataAvailable) {
                     if (err)
@@ -81,8 +81,18 @@ describe("A newly created statement", function () {
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_FLOAT", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_INTEGER", 2, common.closeTo(0.7));
     
-    var data = new Buffer([1,2,3,4,5,6,7,8,9], "binary");
-    testInputParam(data, "SQL_PARAM_INPUT", "SQL_BINARY", 0, common.bufEqual);
+    var shortData = new Buffer([1, 2, 3, 4, 5, 6, 7, 8, 9], "binary");
+    var longData = new Buffer(Math.floor(Math.random() * 20000) + 40000), longString = "";
+    var shortString = "This is a string";
+    for (var i = 0; i < longData.length; i++) {
+        longData[i] = Math.floor(Math.random() * 256);
+        longString += String.fromCharCode(Math.floor(Math.random() * 85) + 31);
+    }
+
+    testInputParam(shortData, "SQL_PARAM_INPUT", "SQL_BINARY", 0, common.bufEqual);
+
+    // Fails (and rightly so)
+    //testInputParam(longData, "SQL_PARAM_INPUT", "SQL_LONGVARBINARY", 0, common.bufEqual);
 
     function testOutputParam(sql, type, digits, _val, expected, buf, cmp) {
         if (!cmp)
@@ -90,7 +100,7 @@ describe("A newly created statement", function () {
 
         describe("when executing " + sql, function () {
             it("should allow a value of type " + type, function (done) {
-                var param = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos[type], digits || 0, _val, buf);
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos[type], null, digits || 0, _val, buf);
                 stmt.execDirect(sql, function (err, needData, hasData) {
                     if (err)
                         return done(err);
@@ -119,7 +129,7 @@ describe("A newly created statement", function () {
     testOutputParam("select ? = 42", "SQL_REAL", 0, undefined, 42.0);
     testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, null, 'xyzzy', new Buffer(200));
     testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, null, 'This is a snowman: \u2603', new Buffer(200));
-    testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, null, data, new Buffer(200), common.bufEqual);
+    testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, null, shortData, new Buffer(200), common.bufEqual);
 
     function testInputOutputParam(sql, type, digits, val, expected, buf, cmp) {
         if (!cmp)
@@ -127,7 +137,7 @@ describe("A newly created statement", function () {
 
         describe("when executing " + sql, function () {
             it("should allow a value of type " + type, function (done) {
-                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT_OUTPUT, eos[type], digits || 0, val, buf);
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT_OUTPUT, eos[type], null, digits || 0, val, buf);
 
                 stmt.setParameterName(1, "@x");
 
@@ -165,13 +175,13 @@ describe("A newly created statement", function () {
     testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43, new Buffer(200));
     testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof", new Buffer(200));
 
-    function testDAEInputParam(val, type, digits, cmp, gdType) {
+    function testDAEInputParam(val, type, len, digits, cmp, gdType) {
         if (!cmp)
             cmp = function (x, y) { return x === y; };
 
-        describe("when binding " + Utils.inspect(val) + " as the first parameter with data at execution", function () {
+        describe("when binding " + Utils.inspect(val).substr(0,50) + " as the first parameter with data at execution", function () {
             it("should allow " + type + (gdType ? " into " + gdType : ""), function (done) {
-                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos[type], 0);
+                var param = stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos[type], len, 0);
 
                 stmt.execDirect("select ? as x", function (err, needData, dataAvailable) {
                     if (err)
@@ -228,10 +238,32 @@ describe("A newly created statement", function () {
         });
     }
 
-    testDAEInputParam(27.42, "SQL_REAL", 0, common.closeTo(0.0001));
-    testDAEInputParam(42.69, "SQL_REAL", 0, common.closeTo(0.7), "SQL_INTEGER");
-    testDAEInputParam(69, "SQL_INTEGER", 0);
-    testDAEInputParam(1142, "SQL_INTEGER", 0, null, "SQL_REAL");
+    testDAEInputParam(27.42, "SQL_REAL", null, 0, common.closeTo(0.0001));
+    testDAEInputParam(42.69, "SQL_REAL", null, 0, common.closeTo(0.7), "SQL_INTEGER");
+    testDAEInputParam(69, "SQL_INTEGER", null, 0);
+    testDAEInputParam(1142, "SQL_INTEGER", null, 0, null, "SQL_REAL");
+
+    testDAEInputParam(shortData, "SQL_BINARY", shortData.length, 0, common.bufEqual);
+    testDAEInputParam(shortString, "SQL_VARCHAR", shortString.length, 0);
+
+    testDAEInputParam(shortData, "SQL_VARBINARY", null, 0, common.bufEqual);
+    testDAEInputParam(shortString, "SQL_VARCHAR", null, 0);
+
+    // Fails (and rightly so)
+    // testDAEInputParam(longData, "SQL_BINARY", longData.length, 0, common.bufEqual);
+    // testDAEInputParam(longString, "SQL_CHAR", null, 0);
+
+    testDAEInputParam(longData, "SQL_VARBINARY", null, 0, common.bufEqual);
+    
+    // TODO fails because it is split up by GetData
+    testDAEInputParam(longString, "SQL_VARCHAR", null, 0);
+
+    // Fails, most likely due to SQL Server's restrictions http://technet.microsoft.com/en-us/library/ms131031.aspx
+    // testDAEInputParam(shortData, "SQL_LONGVARBINARY", null, 0, common.bufEqual);
+    // testDAEInputParam(longData, "SQL_LONGVARBINARY", null, 0, common.bufEqual);
+
+    // TODO this should fail, try it anyway
+    // testDAEInputParam(longString, "SQL_LONGVARCHAR", null, 0);
 
     afterEach(function () {
         stmt.free();

@@ -82,8 +82,8 @@ Handle<Value> Statement::Cancel(const Arguments&) {
 Handle<Value> Statement::BindParameter(const Arguments& args) {
     EOS_DEBUG_METHOD();
     
-    if (args.Length() < 4)
-        return ThrowError("BindParameter expects 4, 5, or 6 arguments");
+    if (args.Length() < 5)
+        return ThrowError("BindParameter expects 5, 6, or 7 arguments");
     
     if (!args[0]->IsInt32())
         return ThrowTypeError("The 1st argument should be an integer");
@@ -98,8 +98,9 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
     // 1. parameter kind (e.g. SQL_PARAM_INPUT)
     // 2. SQL type (e.g. SQL_INTEGER)
     // 3. decimal digits (e.g. 0)
-    // 4. value (e.g. 27)
-    // 5. buffer to use (e.g. new Buffer(4))
+    // 4. scale (e.g. 0)
+    // 5. value (e.g. 27)
+    // 6. buffer to use (e.g. new Buffer(4))
 
     auto parameterNumber = args[0]->Int32Value();
     if (parameterNumber < 1 || parameterNumber > USHRT_MAX)
@@ -107,20 +108,32 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
 
     SQLSMALLINT inOutType = args[1]->Int32Value();
     SQLSMALLINT sqlType = args[2]->Int32Value();
-    SQLSMALLINT decimalDigits = args[3]->Int32Value();
+
+    // max digits for SQL_DECIMAL, SQL_NUMERIC, SQL_FLOAT, SQL_REAL, or SQL_DOUBLE
+    // max length for SQL_*CHAR, SQL_*BINARY
+    SQLSMALLINT columnSize = args[3]->Int32Value();
+    if (args[3]->Int32Value() > SHRT_MAX)
+        return ThrowRangeError("Column size is too high");
+
+    // max digits after decimal point for SQL_NUMERIC/SQL_DECIMAL
+    SQLSMALLINT decimalDigits = args[4]->Int32Value();
+    if (auto j = args[4]->Int32Value() > SHRT_MAX)
+        return ThrowRangeError("Decimal digits is too high");
 
     Handle<Value> jsValue = Undefined();
     Handle<Object> bufferObject;
 
-    if (args.Length() >= 5) 
-        jsValue = args[4];
+    if (args.Length() >= 6) 
+        jsValue = args[5];
 
-    if (args.Length() >= 6 && !args[5]->IsUndefined()) {
-        if (!JSBuffer::HasInstance(args[5]) && !Buffer::HasInstance(args[5]))
-            return ThrowTypeError("Argument 5 should be a Buffer or SlowBuffer");
+    if (args.Length() >= 7 && !args[6]->IsUndefined()) {
+        if (!JSBuffer::HasInstance(args[6]) && !Buffer::HasInstance(args[6]))
+            return ThrowTypeError("The 7th argument should be a Buffer or SlowBuffer");
 
-        bufferObject = args[5].As<Object>();
+        bufferObject = args[6].As<Object>();
     }
+
+    bool dae = jsValue->IsUndefined();
 
     auto jsParam = Parameter::Marshal(parameterNumber, inOutType, sqlType, decimalDigits, jsValue, bufferObject);
     if (jsParam.IsEmpty() || !jsParam->IsObject()) // Exception
@@ -128,13 +141,24 @@ Handle<Value> Statement::BindParameter(const Arguments& args) {
 
     auto param = Parameter::Unwrap(jsParam.As<Object>());
 
+    // Setting the column length is only necessary for these types.
+    if (!args[3]->IsInt32() 
+        && !jsValue->IsUndefined() // Not data-at-execution
+        && (sqlType == SQL_BINARY || sqlType == SQL_CHAR)) {
+
+        if (param->Length() > SHRT_MAX)
+            return ThrowError("Parameter data is too big to be passed as SQL_BINARY or SQL_VARCHAR");
+
+        columnSize = param->Length();
+    }
+
     auto ret = SQLBindParameter(
         GetHandle(),
         parameterNumber,
         inOutType,
         param->CType(),
         param->SQLType(),
-        param->Length(),
+        columnSize,
         decimalDigits,
         param->Buffer(),
         param->Length(),
