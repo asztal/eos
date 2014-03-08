@@ -123,7 +123,12 @@ namespace Eos {
                 else
                     argv[1] = JSBuffer::Slice(bufferHandle_, 0, totalLength_);
             } else {
-                argv[1] = Eos::ConvertToJS(buffer_, min(bufferLength_, totalLength_), cType_);
+                auto bytes = totalLength_;
+                if (totalLength_ == SQL_NO_TOTAL)
+                    bytes = bufferLength_;
+                if (bytes > bufferLength_)
+                    bytes = bufferLength_;
+                argv[1] = Eos::ConvertToJS(buffer_, bytes, cType_);
                 if (argv[1]->IsUndefined())
                     argv[0] = OdbcError("Unable to intepret contents of result buffer");
             }
