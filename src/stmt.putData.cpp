@@ -7,49 +7,38 @@ using namespace Buffers;
 
 namespace Eos {
     struct PutDataOperation : Operation<Statement, PutDataOperation> {
-        PutDataOperation::PutDataOperation() {
+        PutDataOperation::PutDataOperation(Parameter* param, Persistent<Object> bufferObject)
+            : parameter_(param)
+            , bufferObject_(bufferObject)
+        {
             EOS_DEBUG_METHOD();
         }
 
         static Handle<Value> New(Statement* owner, const Arguments& args) {
             EOS_DEBUG_METHOD();
 
-            if (args.Length() < 3)
+            if (args.Length() < 2)
                 return ThrowError("Too few arguments");
 
-            auto value = args[1];
-            auto bufferObject = args[2];
+            if (!Parameter::Constructor()->HasInstance(args[1]))
+                return ThrowTypeError("The first parameter should be a Parameter");
 
-            SQLPOINTER buffer = nullptr;
-            SQLLEN length = 0;
+            auto param = Parameter::Unwrap(args[1].As<Object>());
 
-            if (JSBuffer::HasInstance(bufferObject)) {
-                if(auto msg = JSBuffer::Unwrap(bufferObject, buffer, length))
-                    return ThrowTypeError(msg);
-            } else {
+            if (param->Indicator() != SQL_NULL_DATA && !param->Buffer())
+                return ThrowError("No parameter data supplied (not even null)");
 
-            }
+            param->Ref();
 
-            if (!value->IsUndefined()) {
-                // TODO: How do I determine what the type of the parameter I am sending is?
-                // 1. Instead of taking a value and a buffer, take a Parameter object
-                //   * For DAE input-only parameters, it will require allocating a buffer
-                //     if there isn't one.
-                //   * For DAE input/output parameters, it may require allocating a buffer.
-                //   * Add a prm.setValue(...) method to fill the buffer
-                FillInputBuffer(
-
-            } else {
-                // The value is already in the buffer, and 
-                // the buffer is appropriately sliced.
-            }
-
-            (new PutDataOperation())->Wrap(args.Holder());
+            (new PutDataOperation(param, Persistent<Object>::New(param->BufferObject())))
+                ->Wrap(args.Holder());
             return args.Holder();
         }
 
         void CallbackOverride(SQLRETURN ret) {
             EOS_DEBUG_METHOD();
+
+            parameter_->Unref();
 
             if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA && ret != SQL_PARAM_DATA_AVAILABLE && ret != SQL_NEED_DATA)
                 return CallbackErrorOverride(ret);
@@ -58,14 +47,10 @@ namespace Eos {
 
             Handle<Value> argv[] = { 
                 Undefined(),
-                Undefined(),
                 Boolean::New(ret == SQL_NEED_DATA),
                 Boolean::New(ret == SQL_PARAM_DATA_AVAILABLE)
             };
 
-            if ((ret == SQL_PARAM_DATA_AVAILABLE || ret == SQL_NEED_DATA) && parameter_)
-                argv[1] = reinterpret_cast<Parameter*>(parameter_)->handle_;
-            
             Callback(argv);
         }
 
@@ -77,25 +62,23 @@ namespace Eos {
 
             return SQLPutData(
                 Owner()->GetHandle(),
-                buffer_,
-                indicator_);
+                parameter_->Buffer(),
+                parameter_->Indicator());
         }
 
     private:
+        Parameter* parameter_;
         Persistent<Object> bufferObject_;
-        SQLPOINTER buffer_;
-        SQLLEN bufferLength_;
-        SQLINTEGER indicator_;
     };
 }
 
 Handle<Value> Statement::PutData(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
-    if (args.Length() < 3)
-        return ThrowError("Statement::PutData() requires a value, a buffer, and a callback");
+    if (args.Length() < 2)
+        return ThrowError("Statement::PutData() requires a parameter and a callback");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1], args[2] };
+    Handle<Value> argv[] = { handle_, args[0], args[1] };
 
     return Begin<PutDataOperation>(argv);
 }

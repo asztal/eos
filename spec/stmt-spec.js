@@ -104,7 +104,7 @@ describe("A newly created statement", function () {
                     if (param.kind != eos.SQL_PARAM_OUTPUT)
                         return done("Parameter kind is wrong");
 
-                    var val = param.getValue();
+                    var val = param.value;
                     if (!cmp(expected, val))
                         return done("Not equal: " + Utils.inspect(val) + " != " + Utils.inspect(expected));
                     
@@ -144,7 +144,7 @@ describe("A newly created statement", function () {
                     if (param.kind != eos.SQL_PARAM_INPUT_OUTPUT)
                         return done("Parameter kind is wrong");
 
-                        var result = param.getValue();
+                        var result = param.value;
                         if (!cmp(expected, result))
                             return done("Not equal: " + Utils.inspect(result) + " != " + Utils.inspect(expected));
 
@@ -190,7 +190,9 @@ describe("A newly created statement", function () {
                         if (dae.index != param.index)
                             return done("Expected DAE parameter index to match input parameter");
 
-                        stmt.putData(dae.index, val, function (err) {
+                        param.value = val;
+
+                        stmt.putData(param, function (err) {
                             if (err)
                                 return done(err);
 
@@ -206,8 +208,6 @@ describe("A newly created statement", function () {
                                         return done(err);
                                     if (!hasData)
                                         return done("No results");
-
-                                    var val = param.getValue();
 
                                     stmt.getData(1, eos[gdType || type], null, false, function (err, result) {
                                         if (err)
@@ -229,7 +229,7 @@ describe("A newly created statement", function () {
     }
 
     testDAEInputParam(27.42, "SQL_REAL", 0, common.closeTo(0.0001));
-    testDAEInputParam(42.69, "SQL_REAL", 0, null, "SQL_INTEGER", common.closeTo(0.7));
+    testDAEInputParam(42.69, "SQL_REAL", 0, common.closeTo(0.7), "SQL_INTEGER");
     testDAEInputParam(69, "SQL_INTEGER", 0);
     testDAEInputParam(1142, "SQL_INTEGER", 0, null, "SQL_REAL");
 
