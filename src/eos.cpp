@@ -319,6 +319,10 @@ namespace Eos {
         return ThrowException(Exception::Error(String::New(message)));
     }
 
+    Handle<Value> ThrowRangeError(const char* message) {
+        return ThrowException(Exception::RangeError(String::New(message)));
+    }
+
     Handle<Value> ThrowTypeError(const char* message) {
         return ThrowException(Exception::TypeError(String::New(message)));
     }

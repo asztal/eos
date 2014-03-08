@@ -108,6 +108,7 @@ namespace Eos {
     Local<Value> OdbcError(Handle<String> message, Handle<String> state);
     
     Handle<Value> ThrowError(const char* message);
+    Handle<Value> ThrowRangeError(const char* message);
     Handle<Value> ThrowTypeError(const char* message);
 
     // Use SQLGetDiagRecW to return an OdbcError representing the last error which happened
