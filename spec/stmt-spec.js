@@ -2,6 +2,7 @@
     common = require("./common"),
     expect = common.expect,
     env = common.env,
+    pp = common.pp,
     Utils = require("util");
 
 describe("A newly created statement", function () {
@@ -219,16 +220,31 @@ describe("A newly created statement", function () {
                                     if (!hasData)
                                         return done("No results");
 
-                                    stmt.getData(1, eos[gdType || type], null, false, function (err, result) {
-                                        if (err)
-                                            return done(err);
+                                    getDataLoop();
 
-                                        if (!cmp(result, val))
-                                            return done("Not equal: " + result + " != " + val);
+                                    function getDataLoop(fullResult) {
+                                        stmt.getData(1, eos[gdType || type], null, false, function (err, result, _, more) {
+                                            if (err)
+                                                return done(err);
 
-                                        stmt.closeCursor();
-                                        done();
-                                    });
+                                            if (typeof fullResult === "undefined")
+                                                fullResult = result;
+                                            else
+                                                fullResult += result;
+
+                                            if (more)
+                                                return getDataLoop(fullResult);
+
+                                            if (!cmp(fullResult, val)) {
+                                                console.log(fullResult.length.toString().yellow.bold)
+                                                console.log(val.length.toString().green.bold)
+                                                return done("Not equal: " + pp(fullResult) + " != " + pp(val));
+                                            }
+
+                                            stmt.closeCursor();
+                                            done();
+                                        });
+                                    }
                                 });
                             });
                         });

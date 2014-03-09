@@ -1,6 +1,7 @@
 var FS = require('fs'),
     Path = require('path'),
-    Eos = require('../');
+    Eos = require('../'),
+    Utils = require('util');
 
 var settings;
 try {
@@ -55,6 +56,13 @@ module.exports = {
         return function (x, y) {
             return Math.abs(x - y) < delta;
         }
+    },
+    
+    pp: function pp(x) {
+        x = Utils.inspect(x)
+        if (x.length > 50)
+            x = x.substr(0, 50) + "...";
+        return x;
     }
 };
 
