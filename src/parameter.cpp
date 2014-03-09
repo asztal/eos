@@ -81,14 +81,7 @@ SQLLEN Parameter::BytesInBuffer() const {
     if (indicator_ > length_ || indicator_ == SQL_NO_TOTAL)
         bytes = length_;
 
-    // Reduce bytes to accommodate null terminator
-    if (cType_ == SQL_C_CHAR && bytes == length_) {
-        assert(bytes >= 1);
-        bytes -= sizeof(char);
-    } else if (cType_ == SQL_C_WCHAR && bytes == length_) {
-        assert(bytes >= sizeof(SQLWCHAR));
-        bytes -= sizeof(SQLWCHAR);
-    }
+    // TODO document varchar behaviour (i.e. null terminator)
 
     return bytes;
 }
@@ -184,14 +177,14 @@ Handle<Value> Parameter::GetValue() const {
         return Null();
 
     if (cType_ == SQL_C_BINARY) {
-        assert(indicator_ <= length_ || indicator_ == SQL_NO_TOTAL);
+        assert(indicator_ >= 0 || indicator_ == SQL_NO_TOTAL);
 
-        if (indicator_ == length_ || indicator_ == SQL_NO_TOTAL)
+        if (indicator_ >= length_ || indicator_ == SQL_NO_TOTAL)
             return bufferObject_;
         return JSBuffer::Slice(bufferObject_, 0, indicator_);
     }
 
-    return ConvertToJS(buffer_, BytesInBuffer(), cType_);
+    return ConvertToJS(buffer_, indicator_, length_, cType_);
 }
 
 Handle<Value> Parameter::TrySetValue(Local<Value> value) {

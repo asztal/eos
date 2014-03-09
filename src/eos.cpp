@@ -442,7 +442,10 @@ namespace Eos {
         return SQL_WCHAR;
     }
 
-    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN bufferLength, SQLSMALLINT cType) {
+    Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN indicator, SQLLEN bufferLength, SQLSMALLINT cType) {
+        if (indicator == SQL_NO_TOTAL || indicator > bufferLength)
+            indicator = bufferLength;
+        
         switch(cType) {
         case SQL_C_SLONG:
             return Number::New(*reinterpret_cast<long*>(buffer));
@@ -454,14 +457,22 @@ namespace Eos {
             return *reinterpret_cast<bool*>(buffer) ? True() : False();
 
         case SQL_C_CHAR:
-            return String::New(reinterpret_cast<const char*>(buffer), bufferLength);
+            // Subtract one character iff buffer full, due to null terminator
+            assert(indicator >= 1);
+            if (indicator == bufferLength)
+                --indicator;
+            return String::New(reinterpret_cast<const char*>(buffer), indicator);
 
         case SQL_C_WCHAR:
-            assert(bufferLength % 2 == 0);
-            return StringFromTChar(reinterpret_cast<const SQLWCHAR*>(buffer), bufferLength / 2);
+            // Subtract one character iff buffer full, due to null terminator
+            assert(indicator % 2 == 0);
+            assert(indicator >= sizeof(wchar_t));
+            if (indicator == bufferLength)
+                indicator -= sizeof(wchar_t);
+            return StringFromTChar(reinterpret_cast<const wchar_t*>(buffer), indicator / 2);
 
         case SQL_C_TYPE_TIMESTAMP: {
-            SQL_TIMESTAMP_STRUCT& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
+            auto& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
             tm tm = { 0 };
             tm.tm_year = ts.year - 1900;
             tm.tm_mon = ts.month - 1;

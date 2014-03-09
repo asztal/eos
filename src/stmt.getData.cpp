@@ -115,22 +115,18 @@ namespace Eos {
                 argv[1] = Undefined();
             else if (totalLength_ == SQL_NULL_DATA)
                 argv[1] = Null();
-            else if (raw_)
-                assert(!bufferHandle_.IsEmpty()), argv[1] = bufferHandle_;
-            else if (cType_ == SQL_C_BINARY) {
+            else if (raw_) {
+                assert(!bufferHandle_.IsEmpty());
+                argv[1] = bufferHandle_;
+            } else if (cType_ == SQL_C_BINARY) {
                 if (totalLength_ >= bufferLength_) 
                     argv[1] = bufferHandle_;
                 else
                     argv[1] = JSBuffer::Slice(bufferHandle_, 0, totalLength_);
             } else {
-                auto bytes = totalLength_;
-                if (totalLength_ == SQL_NO_TOTAL)
-                    bytes = bufferLength_;
-                if (bytes > bufferLength_)
-                    bytes = bufferLength_;
-                argv[1] = Eos::ConvertToJS(buffer_, bytes, cType_);
+                argv[1] = Eos::ConvertToJS(buffer_, totalLength_, bufferLength_, cType_);
                 if (argv[1]->IsUndefined())
-                    argv[0] = OdbcError("Unable to intepret contents of result buffer");
+                    argv[0] = OdbcError("Unable to interpret contents of result buffer");
             }
             
             Callback(argv);
