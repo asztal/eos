@@ -309,15 +309,42 @@ Wraps **SQLDescribeCol**. Returns information about the column at index `columnN
  
 ### Statement.getData(columnNumber, dataType, [buffer], raw, callback [err, result, totalBytes, more])
 
-Wraps **SQLGetData**. Retrieves the value of a column, coerced to the value specified by _dataType_ (e.g. `SQL_INTEGER`). Most SQL data types can be represented as JavaScript values. If the column has a long value, only a portion of the value will be fetched. The size of this portion depends on the size of the _buffer_ passed in (if no buffer is passed in, a 64KiB buffer is created). To aid in figuring out whether more data exists to retrieve, the _more_ callback parameter is true when there is more data to get (or when the entire length of the column is unknown, in which case it is assumed that there is more data to retrieve). 
+Wraps **SQLGetData**. Retrieves the value of a column, coerced to the value specified by 
+_dataType_ (e.g. `SQL_INTEGER`). Most SQL data types can be represented as JavaScript values.
+If the column has a long value, only a portion of the value will be fetched. 
+The size of this portion depends on the size of the _buffer_ passed in (if no buffer is 
+passed in, a 64KiB buffer is created).
+To aid in figuring out whether more data exists to retrieve, the _more_ callback parameter
+is true when there is more data to get (or when the entire length of the column is unknown,
+in which case it is assumed that there is more data to retrieve).
 
-Successive `getData` calls will retrieve successive chunks of the column value, until _result_ is `undefined`.
+Successive `getData` calls will retrieve successive chunks of the column value, 
+until _result_ is `undefined` (if `getData` is called after the callback is called with `more`
+set to _true_).
 
-If _dataType_ is `SQL_BINARY`, the results will be placed into _buffer_. If no _buffer_ is passed, a new `Buffer` is allocated. _buffer_ may be a `Buffer` or a `SlowBuffer`. If the call to `getData` does not use the entire buffer, a slice of the input buffer is returned, otherwise the buffer itself is returned.
+If _dataType_ is `SQL_BINARY`, the results (or a portion of) will be placed into _buffer_.
+_buffer_ may be a `Buffer` or a `SlowBuffer`.
+If none is passed, a new 64KiB `Buffer` is allocated. 
+If the call to `getData` does not use the entire buffer, a slice of the input buffer is returned,
+otherwise the buffer itself is returned.
 
-If _dataType_ is `SQL_VARCHAR`, the results will also be placed into _buffer_, however the results will be converted to a `String` (unless _raw_ is true, see below).
+If _dataType_ is a character type, the results will also be placed into _buffer_ (creating a 64KiB
+`Buffer` if none is given), however the results will be converted to a `String` 
+(unless _raw_ is true, see below). 
+`SQL_WCHAR` and such will be treated as UTF-16, and normal character data will be treated as UTF-8.
+If using raw mode, be aware that ODBC always writes a null terminator after character 
+data in a buffer. 
+If `totalBytes` is less than the length of the buffer passed in, the first _totalLength_ bytes 
+are all character data (i.e. `buf.toString(encoding, 0, totalBytes)` is valid). 
+If `totalBytes` is greater than or equal to the length of the buffer, or undefined,
+you should subtract the length of the null terminator (1 byte for SQL_CHAR, 2 bytes for SQL_WCHAR)
+from the number of bytes (or from the length of the buffer, if `totalBytes` is undefined). 
 
-If _raw_ is true, _result_ will simply be the _buffer_ which was passed in (or an automatically-allocated buffer, if none was given). The buffer will not be sliced; it is up to the caller to use _totalBytes_ to determine what to do and to read the data in the correct format. (Note: _totalBytes_ may be `undefined` if the total length of the value is unknown. In this case the buffer will be full.)
+If _raw_ is true, _result_ will simply be the _buffer_ which was passed in
+(or an automatically-allocated buffer, if none was given). The buffer will 
+not be sliced; it is up to the caller to use _totalBytes_ to determine what 
+to do and to read the data in the correct format. (Note: _totalBytes_ may be 
+`undefined` if the total length of the value is unknown. In this case the buffer will be full.)
 
 ### Statement.free() _(synchronous)_
 

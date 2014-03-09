@@ -81,8 +81,6 @@ SQLLEN Parameter::BytesInBuffer() const {
     if (indicator_ > length_ || indicator_ == SQL_NO_TOTAL)
         bytes = length_;
 
-    // TODO document varchar behaviour (i.e. null terminator)
-
     return bytes;
 }
 
