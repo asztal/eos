@@ -129,6 +129,7 @@ describe("A newly created statement", function () {
     testOutputParam("select ? = 42", "SQL_INTEGER", 0, undefined, 42);
     testOutputParam("select ? = 42", "SQL_REAL", 0, undefined, 42.0);
     testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, null, 'xyzzy', new Buffer(200));
+    testOutputParam("select ? = 'xyzzy'", "SQL_WVARCHAR", 0, null, 'xyzzy', new Buffer(200));
     testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, null, 'This is a snowman: \u2603', new Buffer(200));
     testOutputParam("select ? = 0x010203040506070809", "SQL_VARBINARY", 0, null, shortData, new Buffer(200), common.bufEqual);
 
@@ -175,6 +176,7 @@ describe("A newly created statement", function () {
 
     testInputOutputParam("{call increment(?)}", "SQL_INTEGER", 0, 42, 43, new Buffer(200));
     testInputOutputParam("{call reverse(?)}", "SQL_VARCHAR", 0, "forwards", "sdrawrof", new Buffer(200));
+    testInputOutputParam("{call reverse(?)}", "SQL_WVARCHAR", 0, "forwards", "sdrawrof", new Buffer(200));
 
     function testDAEInputParam(val, type, len, digits, cmp, gdType) {
         if (!cmp)
@@ -260,26 +262,29 @@ describe("A newly created statement", function () {
     testDAEInputParam(1142, "SQL_INTEGER", null, 0, null, "SQL_REAL");
 
     testDAEInputParam(shortData, "SQL_BINARY", shortData.length, 0, common.bufEqual);
-    testDAEInputParam(shortString, "SQL_VARCHAR", shortString.length, 0);
+    testDAEInputParam(shortString, "SQL_CHAR", shortString.length, 0);
+    testDAEInputParam(shortString, "SQL_WCHAR", shortString.length, 0);
 
     testDAEInputParam(shortData, "SQL_VARBINARY", null, 0, common.bufEqual);
     testDAEInputParam(shortString, "SQL_VARCHAR", null, 0);
+    testDAEInputParam(shortString, "SQL_WVARCHAR", null, 0);
 
     // Fails (and rightly so)
     // testDAEInputParam(longData, "SQL_BINARY", longData.length, 0, common.bufEqual);
-    // testDAEInputParam(longString, "SQL_CHAR", null, 0);
+    // testDAEInputParam(longString, "SQL_WCHAR", null, 0);
 
     testDAEInputParam(longData, "SQL_VARBINARY", null, 0, common.bufEqual);
     
-    // TODO fails because it is split up by GetData
-    testDAEInputParam(longString, "SQL_VARCHAR", null, 0);
+    // Test long strings being split up and re-attached
+    testDAEInputParam(longString + longString, "SQL_VARCHAR", null, 0);
+    testDAEInputParam(longString, "SQL_WVARCHAR", null, 0);
 
     // Fails, most likely due to SQL Server's restrictions http://technet.microsoft.com/en-us/library/ms131031.aspx
     // testDAEInputParam(shortData, "SQL_LONGVARBINARY", null, 0, common.bufEqual);
     // testDAEInputParam(longData, "SQL_LONGVARBINARY", null, 0, common.bufEqual);
 
     // TODO this should fail, try it anyway
-    // testDAEInputParam(longString, "SQL_LONGVARCHAR", null, 0);
+    // testDAEInputParam(longString, "SQL_WLONGVARCHAR", null, 0);
 
     afterEach(function () {
         stmt.free();

@@ -414,14 +414,18 @@ namespace Eos {
             case SQL_DATETIME: case SQL_TIMESTAMP:
                 return SQL_C_TYPE_TIMESTAMP;
 
-            case SQL_BINARY: case SQL_VARBINARY: case SQL_LONGVARBINARY:
-                return SQL_C_BINARY;
-
             case SQL_BIT:
                 return SQL_C_BIT;
 
+            case SQL_BINARY: case SQL_VARBINARY: case SQL_LONGVARBINARY:
+                return SQL_C_BINARY;
+                
+            case SQL_CHAR: case SQL_VARCHAR: case SQL_LONGVARCHAR:
+                return SQL_C_CHAR;
+
+            case SQL_WCHAR: case SQL_WVARCHAR: case SQL_WLONGVARCHAR:
             default:
-                return SQL_C_TCHAR;
+                return SQL_C_WCHAR;
         }
     }
 
@@ -434,9 +438,7 @@ namespace Eos {
             return SQL_BIT;
         if (jsValue->IsDate())
             return SQL_TIMESTAMP;
-        if (Buffer::HasInstance(jsValue))
-            return SQL_LONGVARBINARY;
-        if (jsValue->IsObject() && JSBuffer::HasInstance(jsValue.As<Object>()))
+        if (Buffer::HasInstance(jsValue) || JSBuffer::HasInstance(jsValue))
             return SQL_LONGVARBINARY;
 
         return SQL_WCHAR;
