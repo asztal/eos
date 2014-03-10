@@ -12,7 +12,7 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle, HANDLE hEve
 }
 
 EosHandle::~EosHandle() {
-    EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, handle_);
 
     FreeHandle();
 
@@ -67,7 +67,7 @@ SQLRETURN EosHandle::FreeHandle() {
     if (!IsValid())
         return SQL_SUCCESS_WITH_INFO;
 
-    if (hWait_)
+    if (hWait_ || !operation_.IsEmpty())
         EOS_DEBUG(L"Attempted to call FreeHandle() while an asynchronous operation is executing\n");
 
     auto ret = SQLFreeHandle(handleType_, sqlHandle_);

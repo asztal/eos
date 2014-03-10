@@ -91,6 +91,10 @@ namespace Eos {
         Operation() { 
             EOS_DEBUG_METHOD();
         }
+        
+        ~Operation() { 
+            EOS_DEBUG_METHOD();
+        }
 
         template<size_t argc>
         static Local<Object> Construct(Handle<Value> (&argv)[argc]) {
