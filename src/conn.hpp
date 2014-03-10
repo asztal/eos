@@ -16,7 +16,7 @@ namespace Eos {
     public:
         // JS methods
         static Handle<Value> New(const Arguments& args);
-        Handle<Value> Connect(const Arguments& args);
+        Handle<Value> DriverConnect(const Arguments& args);
         Handle<Value> BrowseConnect(const Arguments& args);
         Handle<Value> NewStatement(const Arguments& args);
         Handle<Value> NativeSql(const Arguments& args);

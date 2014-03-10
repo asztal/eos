@@ -11,7 +11,7 @@ void Connection::Init(Handle<Object> exports)  {
     EosHandle::Init("Connection", constructor_, New);
 
     auto sig0 = Signature::New(constructor_);
-    EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
+    EOS_SET_METHOD(constructor_, "driverConnect", Connection, DriverConnect, sig0);
     EOS_SET_METHOD(constructor_, "browseConnect", Connection, BrowseConnect, sig0);
     EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
     EOS_SET_METHOD(constructor_, "nativeSql", Connection, NativeSql, sig0);

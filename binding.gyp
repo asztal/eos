@@ -8,7 +8,7 @@
         'src/eos.hpp', 'src/eos.cpp',
         'src/env.hpp', 'src/env.cpp',
         'src/conn.hpp', 'src/conn.cpp',
-          'src/conn.connect.cpp',
+          'src/conn.driverConnect.cpp',
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
 		'src/operation.hpp',

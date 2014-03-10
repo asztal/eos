@@ -3,8 +3,8 @@
 using namespace Eos;
 
 namespace Eos {
-    struct ConnectOperation : Operation<Connection, ConnectOperation> {
-        ConnectOperation::ConnectOperation(Handle<Value> connectionString)
+    struct DriverConnectOperation : Operation<Connection, DriverConnectOperation> {
+        DriverConnectOperation::DriverConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
         {
             EOS_DEBUG_METHOD_FMT(L"%ls", *connectionString_);
@@ -19,11 +19,11 @@ namespace Eos {
             if (!args[1]->IsString())
                 return ThrowTypeError("Connection string should be a string");
 
-            (new ConnectOperation(args[1]))->Wrap(args.Holder());
+            (new DriverConnectOperation(args[1]))->Wrap(args.Holder());
             return args.Holder();
         }
 
-        static const char* Name() { return "ConnectOperation"; }
+        static const char* Name() { return "DriverConnectOperation"; }
 
     protected:
         SQLRETURN CallOverride() {
@@ -44,15 +44,15 @@ namespace Eos {
     };
 }
 
-Handle<Value> Connection::Connect(const Arguments& args) {
+Handle<Value> Connection::DriverConnect(const Arguments& args) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Connection::Connect() requires 2 arguments");
+        return ThrowError("Connection::DriverConnect() requires 2 arguments");
 
     Handle<Value> argv[] = { handle_, args[0], args[1] };
-    return Begin<ConnectOperation>(argv);
+    return Begin<DriverConnectOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
-namespace { ClassInitializer<ConnectOperation> ci; }
+Persistent<FunctionTemplate> Operation<Connection, DriverConnectOperation>::constructor_;
+namespace { ClassInitializer<DriverConnectOperation> ci; }

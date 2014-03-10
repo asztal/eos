@@ -23,7 +23,7 @@ module.exports = {
 
     conn: function conn(cb) { 
         var conn = this.env.newConnection();
-        conn.connect(settings.connectionString, function(err) {
+        conn.driverConnect(settings.connectionString, function(err) {
             if (err)
                 return cb(err);
             cb(null, conn);
