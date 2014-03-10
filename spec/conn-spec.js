@@ -33,6 +33,21 @@ describe("A newly created connection", function () {
         common.conn(done);
     });
 
+    it("should connect using SQLConnect using 1 parameter", function (done) {
+        var c = env.newConnection();
+        c.connect(common.settings.dsn, done);
+    });
+
+    it("should connect using SQLConnect using 1 parameter and null", function (done) {
+        var c = env.newConnection();
+        c.connect(common.settings.dsn, null, done);
+    });
+
+    it("should connect using SQLConnect using 2 parameters and null", function (done) {
+        var c = env.newConnection();
+        c.connect(common.settings.dsn, null, null, done);
+    });
+
     describe("nativeSql", function () {
         it("should fail", function () {
             try {

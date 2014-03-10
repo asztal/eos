@@ -1,3 +1,4 @@
 {
-	"connectionString": "Driver=ODBC Driver 11 for SQL Server;Server=.\\CONNECT;Database=EOS;Trusted_Connection=Yes"
+	"connectionString": "Driver=ODBC Driver 11 for SQL Server;Server=.\\CONNECT;Database=EOS;Trusted_Connection=Yes",
+	"dsn": "EOS_TEST"
 }
