@@ -65,6 +65,10 @@ namespace Eos {
 
 #pragma region("Wait")
     namespace Async {
+        inline void CheckUV(int rc) {
+            assert(rc == 0);
+        }
+
         int initCount = 0;
         uv_async_t async;
         uv_rwlock_t rwlock;
@@ -84,8 +88,8 @@ namespace Eos {
         void InitialiseWaiter() {
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
-                uv_async_init(uv_default_loop(), &async, &ProcessCallbackQueue);
-                uv_rwlock_init(&rwlock);
+                CheckUV(uv_async_init(uv_default_loop(), &async, &ProcessCallbackQueue));
+                CheckUV(uv_rwlock_init(&rwlock));
             } 
 
             initCount++;
