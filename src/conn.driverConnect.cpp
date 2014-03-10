@@ -29,17 +29,16 @@ namespace Eos {
         SQLRETURN CallOverride() {
             EOS_DEBUG_METHOD();
 
-            SQLSMALLINT cchCompleted; // Don't care
-
-            return SQLDriverConnectW(
+            return SQLDriverConnect(
                 Owner()->GetHandle(), 
                 SQL_NULL_HANDLE,
                 *connectionString_, connectionString_.length(),
-                nullptr, 0, &cchCompleted,
+                nullptr, 0, &cchCompleted_,
                 SQL_DRIVER_NOPROMPT);
         }
 
     protected:
+        SQLSMALLINT cchCompleted_; // Not used
         WStringValue connectionString_;
     };
 }
