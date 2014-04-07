@@ -13,11 +13,13 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle, HANDLE hEve
 
 EosHandle::~EosHandle() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, handle_);
+    
+    assert(operation_.IsEmpty());
 
     FreeHandle();
 
     assert(!hWait_ && "The handle should not be destructed until Notify() "
-        "is called (perhaps there is some sort of Ref)/Unref() mismatch)");
+        "is called (perhaps there is some sort of Ref()/Unref() mismatch)");
 
     if (hEvent_) {
         CloseHandle(hEvent_);
@@ -81,6 +83,8 @@ SQLRETURN EosHandle::FreeHandle() {
             EOS_DEBUG(L"Failed to close hEvent_\n");
         hEvent_ = nullptr;
     }
+
+    operation_.Clear();
 
     return SQL_SUCCESS;
 }

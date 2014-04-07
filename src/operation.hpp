@@ -20,6 +20,8 @@ namespace Eos {
         bool Begin(bool isComplete = false) {
             EOS_DEBUG_METHOD();
             
+            OnBegin();
+
             auto ret = Call();
 
             EOS_DEBUG(L"Immediate Result: %hi\n", ret);
@@ -48,6 +50,8 @@ namespace Eos {
 
     protected:
         virtual SQLRETURN CallOverride() = 0;
+
+        virtual void OnBegin() {}
         
         virtual void CallbackOverride(SQLRETURN ret) {
             // Default implementation.
@@ -88,11 +92,12 @@ namespace Eos {
             constructor_->InstanceTemplate()->SetInternalFieldCount(1);
         }
 
-        Operation() { 
+        Operation() : completed_(false) { 
             EOS_DEBUG_METHOD();
         }
         
         ~Operation() { 
+            assert(completed_);
             EOS_DEBUG_METHOD();
         }
 
@@ -141,6 +146,7 @@ namespace Eos {
             TOp* op = ObjectWrap::Unwrap<TOp>(obj->ToObject());
             op->owner_ = owner->handle_;
             op->callback_ = Persistent<Function>::New(args[args.Length() - 1].As<Function>());
+
             return obj;
         };
 
@@ -152,6 +158,8 @@ namespace Eos {
 
         void OnCompleted() {
             EOS_DEBUG_METHOD_FMT(L"owner: 0x%p, operation: 0x%p", Owner(), this);
+            assert(!completed_);
+            completed_ = true;
 
             SQLRETURN ret;
             SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
@@ -160,6 +168,9 @@ namespace Eos {
             CallbackOverride(ret);
             if (tc.HasCaught())
                 FatalException(tc);
+
+            Owner()->Unref();
+            this->Unref();
         }
 
     protected:
@@ -169,6 +180,13 @@ namespace Eos {
         }
 
     private:
+        void OnBegin() {
+            EOS_DEBUG_METHOD();
+            Owner()->Ref();
+            this->Ref();
+        }
+
+        bool completed_;
         Persistent<Object> owner_;
         static Persistent<FunctionTemplate> constructor_;
     };

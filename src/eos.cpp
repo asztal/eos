@@ -86,6 +86,8 @@ namespace Eos {
         void ProcessCallbackQueue(uv_async_t*, int);
 
         void InitialiseWaiter() {
+            assert(initCount >= 0);
+
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
                 CheckUV(uv_async_init(uv_default_loop(), &async, &ProcessCallbackQueue));
@@ -96,6 +98,8 @@ namespace Eos {
         }
 
         void DestroyWaiter() {
+            assert(initCount >= 1);
+
             initCount--;
 
             if (initCount == 0) {
@@ -104,6 +108,9 @@ namespace Eos {
                 uv_close(reinterpret_cast<uv_handle_t*>(&async), nullptr);
             }
         }
+        
+        bool inCallback = false;
+        bool callbackPending = false;
 
         void PrintCallbackChain(const wchar_t* msg) {
             assert(msg);
@@ -134,9 +141,17 @@ namespace Eos {
 
             uv_rwlock_rdlock(&rwlock);
 
+            assert(callbackPending);
+
+            if (!firstCallback) {
+                callbackPending = false;
+                return;
+            }
+            
+#if defined(DEBUG)
+            assert(initCount);
             assert(firstCallback);
 
-#if defined(DEBUG)
             PrintCallbackChain(L"Processing callbacks");
 #endif 
 
@@ -144,15 +159,28 @@ namespace Eos {
                 assert(firstCallback->target);
                 
                 // Helps debugging... globals don't seem to be accessible when debugging
+#if defined(DEBUG)
                 auto fc = firstCallback; 
                 auto ic = initCount;
-                
+
+                auto node = fc; auto ni = 0;
+                while (node) {
+                    node = node->next;
+                    ni++;
+                }
+
+                assert(ic >= ni);
+#endif
+
                 HANDLE hWait = firstCallback->target->GetWaitHandle();
 
-                if (UnregisterWait(hWait))
+                auto rv = UnregisterWait(hWait);
+                // ERROR_IO_PENDING simply means the wait handle couldn't be unregistered because the callback is still executing
+                // http://msdn.microsoft.com/en-us/library/windows/desktop/ms686870(v=vs.85).aspx
+                if (rv || ::GetLastError() == ERROR_IO_PENDING)
                     DestroyWaiter();
-                else 
-                    EOS_DEBUG(L"UnregisterWait failed\n");
+                else
+                    EOS_DEBUG(L"UnregisterWait failed: %i\n", ::GetLastError());
                 
                 auto current = firstCallback;
                 firstCallback = firstCallback->next;
@@ -162,9 +190,15 @@ namespace Eos {
                 // lock the lock since it will have been destroyed
                 if (!initCount) {
                     assert(!firstCallback && "*Must* have been the last callback in the queue if initCount is 0");
+                    assert(!inCallback);
+                    inCallback = true;
                     current->target->Notify();
+                    assert(firstCallback == current->next);
+                    assert(inCallback);
+                    inCallback = false;
                     current->target->Unref();
                     delete current;
+                    callbackPending = false;
                     return; 
                 }
 
@@ -177,11 +211,14 @@ namespace Eos {
             }
             
             assert(initCount);
+            callbackPending = false;
             uv_rwlock_rdunlock(&rwlock);
         }
 
         void NTAPI WaitCallback(PVOID data, BOOLEAN timeout) {
             EOS_DEBUG_METHOD();
+
+            assert(!inCallback);
 
             if (timeout)
                 return;
@@ -208,18 +245,26 @@ namespace Eos {
 #if defined(DEBUG)
             PrintCallbackChain(L"Added new callback");
 #endif 
+            auto p = callbackPending;
             uv_rwlock_wrunlock(&rwlock);
 
-            uv_async_send(&async);
+            if (!p) {
+                callbackPending = true;
+                uv_async_send(&async);
+            } else
+                EOS_DEBUG(L"Didn't wake main thread (already pending async wake up)\n");
         }
     }
 
     HANDLE Wait(INotify* notify) {
         EOS_DEBUG_METHOD();
+
+        assert(!Async::inCallback);
+
         Async::InitialiseWaiter();
 
         HANDLE hRegisteredWaitHandle = nullptr;
-        if (RegisterWaitForSingleObject(&hRegisteredWaitHandle, notify->GetEventHandle(), &Async::WaitCallback, notify, INFINITE, WT_EXECUTEDEFAULT))
+        if (RegisterWaitForSingleObject(&hRegisteredWaitHandle, notify->GetEventHandle(), &Async::WaitCallback, notify, INFINITE, WT_EXECUTEONLYONCE))
             notify->Ref();
         else
             EOS_DEBUG(L"RegisterWaitForSingleObject failed\n");
