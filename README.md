@@ -125,7 +125,7 @@ Wraps **SQLDrivers**. Enumerates available ODBC drivers. These could be used to 
 string using **SQLBrowseConnect**. Example output:
 
 ```js
-[ { description: 'Microsoft Access Text Driver (*.\u0000',
+[ { description: 'Microsoft Access Text Driver (*.txt, *.csv)',
     attributes:
      [ 'UsageCount=3',
        'APILevel=1',
@@ -164,7 +164,7 @@ string using **SQLBrowseConnect**. Example output:
        'SQLLevel=1' ] } ]
 ```
 
-The following information about data source names can be found in _(Access Database Design & Programming, Steven Roman, O'Reilly Media, Inc., 7 Jan 2002, p.398)_.
+The following information about data source names can be found on the MSDN page about [Driver Specification Subkeys](http://msdn.microsoft.com/en-us/library/ms714538%28v=vs.85%29.aspx).
 
 #### DriverODBCVer
 
@@ -172,13 +172,13 @@ The ODBC version of the driver. The ODBC version of the application and the driv
 
 #### ConnectFunctions
 
-A string of three Ys or Ns. If not specified, NNN should be assumed[*]().
+A string of three Ys or Ns. If not specified, NNN should be assumed.
 
  * The first Y or N declares support for **SQLConnect**.
  * The second Y or N declare support for **SQLDriverConnect**.
  * The third Y or N declares support for **SQLBrowseConnect**.
  
-E.g. the Microsoft Access Text Driver does not support **SQLBrowseConnect**.
+E.g. the Microsoft Access Text Driver defined above does not support **SQLBrowseConnect**.
 
 #### FileUsage
 
