@@ -9,29 +9,31 @@ namespace Eos {
         
         static void Init(Handle<Object> exports);
 
-        Handle<Value> GetValue() const;
-        void SetValue(Local<Value> value);
-        Handle<Value> TrySetValue(Local<Value> value);
+        NAN_GETTER(GetValue) const;
+        NAN_SETTER(SetValue);
 
         SQLLEN BytesInBuffer() const;
         
-        Handle<Value> GetBuffer() const;
-        Handle<Value> GetBufferLength() const;
-        Handle<Value> GetBytesInBuffer() const;
-        Handle<Value> GetIndex() const;
-        Handle<Value> GetKind() const;
+        NAN_GETTER(GetBuffer) const;
+        NAN_GETTER(GetBufferLength) const;
+        NAN_GETTER(GetBytesInBuffer) const;
+        NAN_GETTER(GetIndex) const;
+        NAN_GETTER(GetKind) const;
 
     public:
 
-        static Handle<Value> Marshal(
+        static const char* Marshal(
             SQLUSMALLINT parameterNumber, 
             SQLSMALLINT inOutType,
             SQLSMALLINT sqlType,
             SQLSMALLINT decimalDigits, 
             Handle<Value> jsVal,
-            Handle<Object> bufferObject);
+            Handle<Object> bufferObject,
+            Handle<Object>& result);
 
-        static Parameter* Unwrap(Handle<Object> obj) { return ObjectWrap::Unwrap<Parameter>(obj); }
+        static Parameter* Unwrap(Handle<Object> obj) { 
+            return ObjectWrap::Unwrap<Parameter>(obj);
+        }
 
         void Ref() { EOS_DEBUG_METHOD(); ObjectWrap::Ref(); }
         void Unref() { EOS_DEBUG_METHOD(); ObjectWrap::Unref(); }

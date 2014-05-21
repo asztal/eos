@@ -75,7 +75,7 @@ namespace Eos {
 
         template <size_t argc>
         void Callback(Handle<Value> (&argv)[argc]) {
-            callback_->Call(Context::GetCurrent()->Global(), argc, argv);
+            NanNew(callback_)->Call(NanGetCurrentContext()->Global(), argc, argv);
         }
 
     protected:
@@ -141,21 +141,19 @@ namespace Eos {
 
             auto owner = ObjectWrap::Unwrap<TOwner>(args[0]->ToObject());
             
-            auto obj = TOp::New(owner, args);
-            if (obj->IsUndefined())
-                return obj;
+            auto error = TOp::New(owner, args);
+            if (!error->IsUndefined())
+                return NanThrowError(error);
 
-            assert(obj->IsObject());
+            auto op = ObjectWrap::Unwrap<TOp>(args.Holder());
+            NanAssignPersistent(op->owner_, NanObjectWrapHandle(owner));
+            NanAssignPersistent(op->callback_, args[args.Length() - 1].As<Function>());
 
-            TOp* op = ObjectWrap::Unwrap<TOp>(obj->ToObject());
-            op->owner_ = owner->handle_;
-            NanAssignPersistent(op->callback_, NanNew<Function>(args[args.Length() - 1].As<Function>()));
-
-            return obj;
+            NanReturnValue(args.Holder());
         };
 
         static Handle<FunctionTemplate> Constructor() {
-            return constructor_;
+            return NanNew(constructor_);
         }
 
         TOwner* Owner() { return ObjectWrap::Unwrap<TOwner>(NanNew(owner_)); }

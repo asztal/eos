@@ -48,16 +48,16 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 6)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             auto columnNumber = args[1]->Int32Value();
             auto sqlType = args[2]->Int32Value();
 
             if (!args[1]->IsUint32() || columnNumber > USHRT_MAX)
-                return NanThrowError("Column number must be an integer from 0 to 65535");
+                return NanError("Column number must be an integer from 0 to 65535");
 
             if (!args[2]->IsInt32() || sqlType < SHRT_MIN || sqlType > SHRT_MAX)
-                return NanThrowError("Target type is out of range");
+                return NanError("Target type is out of range");
 
             Handle<Object> bufferHandle;
             SQLPOINTER buffer;
@@ -70,16 +70,14 @@ namespace Eos {
                 
                 auto msg = JSBuffer::Unwrap(bufferHandle, buffer, bufferLength);
                 if (msg)
-                    return ThrowError(msg);
-            } else if (args[3]->IsObject() && Buffer::constructor_template->HasInstance(args[3])) {
-                bufferHandle = args[3].As<Object>();
-                auto slow = ObjectWrap::Unwrap<Buffer>(bufferHandle);
-                buffer = Buffer::Data(slow);
-                bufferLength = Buffer::Length(slow);
+                    return NanError(msg);
+            } else if (args[3]->IsObject() && Buffer::HasInstance(args[3])) {
+                buffer = Buffer::Data(args[3]);
+                bufferLength = Buffer::Length(args[3]);
                 ownBuffer = false;
             } else {
                 if (!args[3]->IsUndefined() && !args[3]->IsNull())
-                    return ThrowError("Unknown buffer type (pass null to have a buffer created automatically)");
+                    return NanError("Unknown buffer type (pass null to have a buffer created automatically)");
 
                 // The operation can choose to allocate a buffer if it decides it necessary
                 // based on targetType.
@@ -94,7 +92,8 @@ namespace Eos {
                 sqlType, 
                 buffer, bufferLength, bufferHandle,
                 raw))->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -107,9 +106,10 @@ namespace Eos {
 
             Handle<Value> argv[4];
             argv[0] = NanUndefined();
-            argv[2] = (totalLength_ != SQL_NO_TOTAL)
-                    ? NanNew<Int32>(totalLength_)
-                    : NanUndefined();
+            if (totalLength_ != SQL_NO_TOTAL)
+                argv[2] = NanNew<Integer>(totalLength_);
+            else
+                argv[2] = NanUndefined();
             argv[3] = NanNew<Boolean>(totalLength_ > bufferLength_ || (totalLength_ == SQL_NO_TOTAL && ret == SQL_SUCCESS_WITH_INFO));
 
             if (ret == SQL_NO_DATA)

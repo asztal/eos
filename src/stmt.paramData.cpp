@@ -15,10 +15,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 1)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             (new ParamDataOperation())->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         void CallbackOverride(SQLRETURN ret) {

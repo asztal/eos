@@ -15,17 +15,18 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             if (!args[1]->IsInt32())
-                return NanThrowTypeError("The column number must be an integer between 0 and 65535");
+                return NanTypeError("The column number must be an integer between 0 and 65535");
 
             auto columnNumber = args[1]->Int32Value();
             if (columnNumber < 0 || columnNumber > USHRT_MAX)
-                return NanThrowRangeError("The column number must be an integer between 0 and 65535");
+                return NanRangeError("The column number must be an integer between 0 and 65535");
 
             (new DescribeColOperation(columnNumber))->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -86,7 +87,7 @@ NAN_METHOD(Statement::DescribeCol) {
             "Statement::DescribeCol() requires a column number"
             "(starting from 1, or 0 for the bookmark column) a callback");
 
-    Handle<Value> argv[] = { handle(), args[0], args[1] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
     return Begin<DescribeColOperation>(argv);
 }
 

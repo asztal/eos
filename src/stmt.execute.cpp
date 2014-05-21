@@ -12,10 +12,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             (new ExecuteOperation())->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         static const char* Name() { return "ExecuteOperation"; }
@@ -52,7 +53,7 @@ NAN_METHOD(Statement::Execute) {
     if (args.Length() < 1)
         return NanThrowError("Statement::Execute() requires a callback");
     
-    Handle<Value> argv[] = { handle(), args[0] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0] };
     return Begin<ExecuteOperation>(argv);
 }
 

@@ -36,13 +36,13 @@ namespace Eos {
 
             IOperation* currentOp = nullptr;
             if (!operation_.IsEmpty()) {
-                currentOp = ObjectWrap::Unwrap<IOperation>(operation_);
+                currentOp = ObjectWrap::Unwrap<IOperation>(NanNew(operation_));
                 return NanThrowError("An operation is already in progress on this handle.");
             }
 
             auto op = TOp::Construct(argv).As<Object>();
             if (op.IsEmpty())
-                return op; // Probably the constructor threw
+                NanReturnUndefined(); // Probably the constructor threw
 
             bool completedSynchronously = 
                 ObjectWrap::Unwrap<TOp>(op)->Begin();
@@ -54,7 +54,7 @@ namespace Eos {
                 if (hWait_ = Eos::Wait(this))
                     NanAssignPersistent(operation_, op);
                 else 
-                    return ThrowException(OdbcError("Unable to begin asynchronous operation"));
+                    return NanThrowError(OdbcError("Unable to begin asynchronous operation"));
             } else {
                 EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
             }

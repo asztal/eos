@@ -44,30 +44,30 @@ Parameter::Parameter
     EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
 }
 
-Handle<Value> Parameter::GetBuffer() const {
-    return NanNew(bufferObject_);
+NAN_GETTER(Parameter::GetBuffer) const {
+    NanReturnValue(NanNew(bufferObject_));
 }
 
-Handle<Value> Parameter::GetBufferLength() const {
-    return NanNew<Integer>(length_);
+NAN_GETTER(Parameter::GetBufferLength) const {
+    NanReturnValue(NanNew<Integer>(length_));
 }
 
-Handle<Value> Parameter::GetBytesInBuffer() const {
+NAN_GETTER(Parameter::GetBytesInBuffer) const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
-        return NanUndefined();
+        NanReturnUndefined();
 
     if (indicator_ == SQL_NULL_DATA)
-        return NanNull();
+        NanReturnNull();
 
-    return NanNew<Integer>(BytesInBuffer());
+    NanReturnValue(NanNew<Integer>(BytesInBuffer()));
 }
 
-Handle<Value> Parameter::GetIndex() const {
-    return NanNew<Integer>(parameterNumber_);
+NAN_GETTER(Parameter::GetIndex) const {
+    NanReturnValue(NanNew<Integer>(parameterNumber_));
 }
 
-Handle<Value> Parameter::GetKind() const {
-    return NanNew<Integer>(inOutType_);
+NAN_GETTER(Parameter::GetKind) const {
+    NanReturnValue(NanNew<Integer>(inOutType_));
 }
 
 SQLLEN Parameter::BytesInBuffer() const {
@@ -85,13 +85,14 @@ SQLLEN Parameter::BytesInBuffer() const {
     return bytes;
 }
 
-Handle<Value> Parameter::Marshal(
+const char* Parameter::Marshal(
     SQLUSMALLINT parameterNumber, 
     SQLSMALLINT inOutType, 
     SQLSMALLINT sqlType,
     SQLSMALLINT decimalDigits, 
     Handle<Value> jsValue, 
-    Handle<Object> handle) 
+    Handle<Object> handle,
+    Handle<Object>& result) 
 {
     EOS_DEBUG_METHOD_FMT(L"fType = %i, digits = %i", inOutType, decimalDigits);
 
@@ -106,7 +107,7 @@ Handle<Value> Parameter::Marshal(
 
     if (!handle.IsEmpty())
         if(auto msg = JSBuffer::Unwrap(handle, buffer, length))
-            return ThrowError(msg);
+            return msg;
 
     // The two cases where input buffer is bound
     if ((inOutType == SQL_PARAM_INPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) 
@@ -119,25 +120,25 @@ Handle<Value> Parameter::Marshal(
         } else if(handle.IsEmpty()) {
             // It's an input parameter, and we have a value.
             if (!AllocateBoundInputParameter(cType, jsValue, buffer, length, handle))
-                return ThrowError("Cannot allocate buffer for bound input or input/output parameter");
+                return "Cannot allocate buffer for bound input or input/output parameter";
             indicator = length;
         } else {
             // Bound input parameter, check that buffer is big enough
             auto len2 = GetDesiredBufferLength(cType);
             if (length < len2)
-                return ThrowError("The passed buffer is too small");
+                return "The passed buffer is too small";
 
             // Now fill the buffer with the marhsalled value
             indicator = FillInputBuffer(cType, jsValue, buffer, length);
             if (!indicator)
-                return ThrowError("Cannot place parameter value into buffer");
+                return "Cannot place parameter value into buffer";
         }
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
         // It's an output parameter, in a bound buffer, or a DAE input parameter with a
         // bound output buffer.
         if (handle.IsEmpty()) {
             if (!AllocateOutputBuffer(cType, buffer, length, handle))
-                return ThrowError("Cannot allocate buffer for output parameter");
+                return "Cannot allocate buffer for output parameter";
         }
 
         indicator = length;
@@ -151,68 +152,67 @@ Handle<Value> Parameter::Marshal(
         indicator = SQL_DATA_AT_EXEC;
     } else {
         EOS_DEBUG(L"Unknown inOutType %i", inOutType);
-        return ThrowError("Unknown parameter kind");
+        return "Unknown parameter kind";
     }
 
     assert(buffer == nullptr || !handle.IsEmpty());
 
     auto param = new(nothrow) Parameter(parameterNumber, inOutType, sqlType, cType, buffer, length, handle, indicator);
     if (!param)
-        return ThrowError("Out of memory allocating parameter structure");
+        return "Out of memory allocating parameter structure";
 
     if (buffer == nullptr)
         param->buffer_ = param;
 
-    auto obj = Constructor()->GetFunction()->NewInstance();
-    param->Wrap(obj);
-    return obj;
+    result = Constructor()->GetFunction()->NewInstance();
+    param->Wrap(result);
+
+    return nullptr;
 }
 
-Handle<Value> Parameter::GetValue() const {
+NAN_GETTER(Parameter::GetValue) const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
         return NanThrowError("GetValue can only be called for bound output parameters");
 
     if (indicator_ == SQL_NULL_DATA)
-        return Null();
+        NanReturnNull();
 
     if (cType_ == SQL_C_BINARY) {
         assert(indicator_ >= 0 || indicator_ == SQL_NO_TOTAL);
 
         if (indicator_ >= length_ || indicator_ == SQL_NO_TOTAL)
-            return bufferObject_;
-        return JSBuffer::Slice(bufferObject_, 0, indicator_);
+            NanReturnValue(NanNew(bufferObject_));
+        NanReturnValue(JSBuffer::Slice(NanNew(bufferObject_), 0, indicator_));
     }
 
-    return ConvertToJS(buffer_, indicator_, length_, cType_);
+    NanReturnValue(ConvertToJS(buffer_, indicator_, length_, cType_));
 }
 
-Handle<Value> Parameter::TrySetValue(Local<Value> value) {
+NAN_SETTER(Parameter::SetValue) {
     if (value->IsNull()) {
         indicator_ = SQL_NULL_DATA;
-        return True();
+        return;
     }
 
     if (bufferObject_.IsEmpty()) {
-        if (!AllocateBoundInputParameter(cType_, value, buffer_, length_, bufferObject_)) {
-            return ThrowError("Cannot allocate buffer for parameter data");
+        if (!AllocateBoundInputParameter(cType_, value, buffer_, length_, NanNew(bufferObject_))) {
+            NanThrowError("Cannot allocate buffer for parameter data");
+            return;
         }
         indicator_ = length_;
     } else {
         auto desiredLength = GetDesiredBufferLength(cType_);
         if (length_ < desiredLength) {
-            return ThrowError("The parameter data buffer is too small to contain the value");
+            NanThrowError("The parameter data buffer is too small to contain the value");
+            return;
         }
 
         indicator_ = FillInputBuffer(cType_, value, buffer_, length_);
-        if (!indicator_)
-            return ThrowError("Cannot place parameter value into buffer");
+        if (!indicator_) {
+            NanThrowError("Cannot place parameter value into buffer");
+            return;
+        }
     }
-
-    return True();
-}
-
-void Parameter::SetValue(Local<Value> value) {
-    TrySetValue(value);
 }
 
 Parameter::~Parameter() {

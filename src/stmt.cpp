@@ -136,9 +136,10 @@ NAN_METHOD(Statement::BindParameter) {
 
     bool dae = jsValue->IsUndefined();
 
-    auto jsParam = Parameter::Marshal(parameterNumber, inOutType, sqlType, decimalDigits, jsValue, bufferObject);
-    if (jsParam.IsEmpty() || !jsParam->IsObject()) // Exception
-        NanReturnValue(jsParam);
+    Local<Object> jsParam;
+    auto msg = Parameter::Marshal(parameterNumber, inOutType, sqlType, decimalDigits, jsValue, bufferObject, jsParam);
+    if (msg) // Exception
+        return NanThrowError(msg);
 
     auto param = Parameter::Unwrap(jsParam.As<Object>());
 

@@ -10,10 +10,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             (new DisconnectOperation())->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         SQLRETURN CallOverride() {
@@ -29,7 +30,7 @@ NAN_METHOD(Connection::Disconnect) {
     if (args.Length() < 1)
         return NanThrowError("Connection::Disconnect() requires a callback");
 
-    Handle<Value> argv[] = { handle(), args[0] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0] };
     return Begin<DisconnectOperation>(argv);
 }
 
