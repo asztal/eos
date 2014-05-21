@@ -17,12 +17,13 @@ namespace Eos {
             : columnNumber_(columnNumber)
             , sqlType_(sqlType)
             , buffer_(buffer)
-            , bufferHandle_(Persistent<Object>::New(bufferHandle))
             , bufferLength_(bufferLength)
             , totalLength_(0)
             , raw_(raw)
         {
             EOS_DEBUG_METHOD_FMT(L"%hu, type = %hi", columnNumber_, sqlType_);
+
+            NanAssignPersistent(bufferHandle_, bufferHandle);
 
             cType_ = GetCTypeForSQLType(sqlType_);
 
@@ -32,9 +33,9 @@ namespace Eos {
                     || cType_ == SQL_C_CHAR
                     || raw_)
                 {
-                    bufferHandle_ = Persistent<Object>::New(JSBuffer::New(65536));
+                    NanAssignPersistent(bufferHandle_, JSBuffer::New(65536));
                 
-                    auto msg = JSBuffer::Unwrap(bufferHandle_, buffer_, bufferLength_);
+                    auto msg = JSBuffer::Unwrap(NanNew(bufferHandle_), buffer_, bufferLength_);
                     assert(msg == nullptr);
                 } else {
                     buffer_ = &rawValues_;
@@ -43,20 +44,20 @@ namespace Eos {
             }
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 6)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             auto columnNumber = args[1]->Int32Value();
             auto sqlType = args[2]->Int32Value();
 
             if (!args[1]->IsUint32() || columnNumber > USHRT_MAX)
-                return ThrowError("Column number must be an integer from 0 to 65535");
+                return NanThrowError("Column number must be an integer from 0 to 65535");
 
             if (!args[2]->IsInt32() || sqlType < SHRT_MIN || sqlType > SHRT_MAX)
-                return ThrowError("Target type is out of range");
+                return NanThrowError("Target type is out of range");
 
             Handle<Object> bufferHandle;
             SQLPOINTER buffer;
@@ -93,7 +94,7 @@ namespace Eos {
                 sqlType, 
                 buffer, bufferLength, bufferHandle,
                 raw))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -105,24 +106,24 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[4];
-            argv[0] = Undefined();
+            argv[0] = NanUndefined();
             argv[2] = (totalLength_ != SQL_NO_TOTAL)
-                    ? Int32::New(totalLength_)
-                    : Undefined();
-            argv[3] = Boolean::New(totalLength_ > bufferLength_ || (totalLength_ == SQL_NO_TOTAL && ret == SQL_SUCCESS_WITH_INFO));
+                    ? NanNew<Int32>(totalLength_)
+                    : NanUndefined();
+            argv[3] = NanNew<Boolean>(totalLength_ > bufferLength_ || (totalLength_ == SQL_NO_TOTAL && ret == SQL_SUCCESS_WITH_INFO));
 
             if (ret == SQL_NO_DATA)
-                argv[1] = Undefined();
+                argv[1] = NanUndefined();
             else if (totalLength_ == SQL_NULL_DATA)
-                argv[1] = Null();
+                argv[1] = NanNull();
             else if (raw_) {
                 assert(!bufferHandle_.IsEmpty());
-                argv[1] = bufferHandle_;
+                argv[1] = NanNew(bufferHandle_);
             } else if (cType_ == SQL_C_BINARY) {
                 if (totalLength_ >= bufferLength_) 
-                    argv[1] = bufferHandle_;
+                    argv[1] = NanNew(bufferHandle_);
                 else
-                    argv[1] = JSBuffer::Slice(bufferHandle_, 0, totalLength_);
+                    argv[1] = JSBuffer::Slice(NanNew(bufferHandle_), 0, totalLength_);
             } else {
                 argv[1] = Eos::ConvertToJS(buffer_, totalLength_, bufferLength_, cType_);
                 if (argv[1]->IsUndefined())
@@ -165,13 +166,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::GetData(const Arguments& args) {
+NAN_METHOD(Statement::GetData) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 5)
         return ThrowError("Statement::GetData() requires 4 arguments and a callback");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1], args[2], args[3], args[4] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1], args[2], args[3], args[4] };
     return Begin<GetDataOperation>(argv);
 }
 

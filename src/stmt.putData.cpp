@@ -14,25 +14,25 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!Parameter::Constructor()->HasInstance(args[1]))
-                return ThrowTypeError("The first parameter should be a Parameter");
+                return NanThrowTypeError("The first parameter should be a Parameter");
 
             auto param = Parameter::Unwrap(args[1].As<Object>());
 
             if (param->Indicator() != SQL_NULL_DATA && !param->Buffer())
-                return ThrowError("No parameter data supplied (not even null)");
+                return NanThrowError("No parameter data supplied (not even null)");
 
             param->Ref();
 
             (new PutDataOperation(param, Persistent<Object>::New(param->BufferObject())))
                 ->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -46,9 +46,9 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                Boolean::New(ret == SQL_NEED_DATA),
-                Boolean::New(ret == SQL_PARAM_DATA_AVAILABLE)
+                NanUndefined(),
+                NanNew<Boolean>(ret == SQL_NEED_DATA),
+                NanNew<Boolean>(ret == SQL_PARAM_DATA_AVAILABLE)
             };
 
             Callback(argv);
@@ -72,13 +72,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::PutData(const Arguments& args) {
+NAN_METHOD(Statement::PutData) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Statement::PutData() requires a parameter and a callback");
+        return NanThrowError("Statement::PutData() requires a parameter and a callback");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
 
     return Begin<PutDataOperation>(argv);
 }

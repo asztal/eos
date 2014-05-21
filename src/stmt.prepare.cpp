@@ -10,17 +10,17 @@ namespace Eos {
             EOS_DEBUG_METHOD_FMT(L"sql = %ls", *sql_);
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!args[1]->IsString())
-                return ThrowTypeError("Statement SQL should be a string");
+                return NanThrowTypeError("Statement SQL should be a string");
 
             (new PrepareOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "PrepareOperation"; }
@@ -39,13 +39,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::Prepare(const Arguments& args) {
+NAN_METHOD(Statement::Prepare) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Statement::Prepare() requires 2 arguments");
+        return NanThrowError("Statement::Prepare() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
     return Begin<PrepareOperation>(argv);
 }
 

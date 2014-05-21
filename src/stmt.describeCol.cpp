@@ -11,21 +11,21 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!args[1]->IsInt32())
-                return ThrowError("The column number must be an integer between 0 and 65535");
+                return NanThrowTypeError("The column number must be an integer between 0 and 65535");
 
             auto columnNumber = args[1]->Int32Value();
             if (columnNumber < 0 || columnNumber > USHRT_MAX)
-                return ThrowError("The column number must be an integer between 0 and 65535");
+                return NanThrowRangeError("The column number must be an integer between 0 and 65535");
 
             (new DescribeColOperation(columnNumber))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -37,14 +37,14 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
+                NanUndefined(),
                 StringFromTChar(columnName_, min<SQLSMALLINT>(maxColumnNameLength, columnNameLength_)),
-                Integer::New(dataType_),
-                Integer::New(columnSize_),
-                Integer::New(decimalDigits_),
+                NanNew<Integer>(dataType_),
+                NanNew<Integer>(columnSize_),
+                NanNew<Integer>(decimalDigits_),
                 nullable_ == SQL_NULLABLE_UNKNOWN 
-                    ? Undefined()
-                    : (nullable_ == SQL_NULLABLE ? True() : False())
+                    ? NanUndefined()
+                    : (nullable_ == SQL_NULLABLE ? NanTrue() : NanFalse())
             };
             
             Callback(argv);
@@ -78,15 +78,15 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::DescribeCol(const Arguments& args) {
+NAN_METHOD(Statement::DescribeCol) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError(
+        return NanThrowError(
             "Statement::DescribeCol() requires a column number"
             "(starting from 1, or 0 for the bookmark column) a callback");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { handle(), args[0], args[1] };
     return Begin<DescribeColOperation>(argv);
 }
 

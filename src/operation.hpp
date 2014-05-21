@@ -140,7 +140,7 @@ namespace Eos {
                 return NanThrowTypeError("Last argument should be a callback function");
 
             auto owner = ObjectWrap::Unwrap<TOwner>(args[0]->ToObject());
-
+            
             auto obj = TOp::New(owner, args);
             if (obj->IsUndefined())
                 return obj;

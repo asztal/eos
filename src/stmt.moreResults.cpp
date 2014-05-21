@@ -8,14 +8,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 1)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             (new MoreResultsOperation())->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -27,9 +27,9 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                Boolean::New(ret != SQL_NO_DATA),
-                Boolean::New(ret == SQL_PARAM_DATA_AVAILABLE)
+                NanUndefined(),
+                NanNew<Boolean>(ret != SQL_NO_DATA),
+                NanNew<Boolean>(ret == SQL_PARAM_DATA_AVAILABLE)
             };
             
             Callback(argv);
@@ -47,13 +47,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::MoreResults(const Arguments& args) {
+NAN_METHOD(Statement::MoreResults) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Statement::MoreResults() requires a callback");
+        return NanThrowError("Statement::MoreResults() requires a callback");
 
-    Handle<Value> argv[] = { handle_, args[0] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0] };
     return Begin<MoreResultsOperation>(argv);
 }
 
