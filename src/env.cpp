@@ -3,80 +3,80 @@
 
 using namespace Eos;
 
-void Environment::Init(Handle<Object> exports) {
+void Eos::Environment::Init(Handle<Object> exports) {
     EosHandle::Init("Environment", constructor_, New);
 
     // The exported constructor can only be called on values made by the internal constructor.
-    auto sig0 = Signature::New(constructor_);
+    auto sig0 = NanNew<Signature>(Constructor());
 
-    EOS_SET_METHOD(constructor_, "newConnection", Environment, NewConnection, sig0);
-    EOS_SET_METHOD(constructor_, "dataSources", Environment, DataSources, sig0);
-    EOS_SET_METHOD(constructor_, "drivers", Environment, Drivers, sig0);
+    EOS_SET_METHOD(Constructor(), "newConnection", Environment, NewConnection, sig0);
+    EOS_SET_METHOD(Constructor(), "dataSources", Environment, DataSources, sig0);
+    EOS_SET_METHOD(Constructor(), "drivers", Environment, Drivers, sig0);
 
-    exports->Set(String::NewSymbol("Environment"), constructor_->GetFunction(), ReadOnly);
+    exports->Set(NanSymbol("Environment"), Constructor()->GetFunction(), ReadOnly);
 }
 
-Environment::Environment(SQLHENV hEnv) 
+Eos::Environment::Environment(SQLHENV hEnv) 
     : EosHandle(SQL_HANDLE_ENV, hEnv, nullptr) 
 {
     EOS_DEBUG_METHOD();
 }
 
-Handle<Value> Environment::New(const Arguments& args) {
+NAN_METHOD(Eos::Environment::New) {
     EOS_DEBUG_METHOD();
 
-    HandleScope scope;
+    NanScope();
 
     if (!args.IsConstructCall())
-        return scope.Close(constructor_->GetFunction()->NewInstance());
+        NanReturnValue(Constructor()->GetFunction()->NewInstance());
 
     SQLHENV hEnv;
     auto ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
     if (!SQL_SUCCEEDED(ret))
-        return ThrowError("Unable to allocate environment handle");
+        return NanThrowError("Unable to allocate environment handle");
     
     ret = SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3_80, SQL_IS_UINTEGER);
     if (!SQL_SUCCEEDED(ret)) {
         auto exception = Eos::GetLastError(SQL_HANDLE_ENV, hEnv);
         SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-        return ThrowException(exception);
+        return NanThrowError(exception);
     }
 
     (new Environment(hEnv))->Wrap(args.Holder());
-    return scope.Close(args.Holder());
+    NanReturnValue(args.Holder());
 }
 
 namespace {
-    Handle<Value> ThrowClosed() {
-        return ThrowException(OdbcError("The environment has been closed."));
+    _NAN_METHOD_RETURN_TYPE ThrowClosed() {
+        return NanThrowError(OdbcError("The environment has been closed."));
     }
 }
 
-Handle<Value> Environment::NewConnection(const Arguments& args) {
+NAN_METHOD(Eos::Environment::NewConnection) {
     EOS_DEBUG_METHOD();
 
     if (!IsValid())
         return ThrowClosed();
 
-    Handle<Value> argv[1] = { handle_ };
-    return Connection::Constructor()->GetFunction()->NewInstance(1, argv);
+    Handle<Value> argv[1] = { handle() };
+    NanReturnValue(Connection::Constructor()->GetFunction()->NewInstance(1, argv));
 }
 
-Handle<Value> Environment::DataSources(const Arguments& args) {
+NAN_METHOD(Eos::Environment::DataSources) {
     EOS_DEBUG_METHOD();
 
     SQLUSMALLINT direction = SQL_FETCH_FIRST;
 
-    auto results = Array::New();
+    auto results = NanNew<Array>();
 
     if (args.Length() > 0) {
         Handle<String> type = args[0]->ToString();
-        if (type->Equals(String::New("user")))
+        if (type->Equals(NanNew<String>("user")))
             direction = SQL_FETCH_FIRST_USER;
-        else if (type->Equals(String::New("system")))
+        else if (type->Equals(NanNew<String>("system")))
             direction = SQL_FETCH_FIRST_SYSTEM;
         else
-            return ThrowError("The first argument must be 'system', 'user', or omitted");
+            return NanThrowError("The first argument must be 'system', 'user', or omitted");
     }
 
     uint32_t i = 0;
@@ -93,26 +93,26 @@ Handle<Value> Environment::DataSources(const Arguments& args) {
             description, sizeof(description) / sizeof(wchar_t), &descriptionLength);
     
         if (ret == SQL_NO_DATA)
-            return results;
+            NanReturnValue(results);
 
         if (ret == SQL_ERROR)
-            return ThrowException(GetLastError());
+            return NanThrowError(GetLastError());
 
-        auto item = Object::New();
-        item->Set(String::NewSymbol("server"), StringFromTChar(serverName, min(sizeof(serverName) / sizeof(wchar_t), (size_t)serverNameLength)));
-        item->Set(String::NewSymbol("description"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
+        auto item = NanNew<Object>();
+        item->Set(NanSymbol("server"), StringFromTChar(serverName, min(sizeof(serverName) / sizeof(wchar_t), (size_t)serverNameLength)));
+        item->Set(NanSymbol("description"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
         results->Set(i++, item);
 
         direction = SQL_FETCH_NEXT;
     }
 }
 
-Handle<Value> Environment::Drivers(const Arguments& args) {
+NAN_METHOD(Eos::Environment::Drivers) {
     EOS_DEBUG_METHOD();
 
     SQLUSMALLINT direction = SQL_FETCH_FIRST;
 
-    auto results = Array::New();
+    auto results = NanNew<Array>();
 
     uint32_t i = 0;
     SQLRETURN ret;
@@ -129,15 +129,15 @@ Handle<Value> Environment::Drivers(const Arguments& args) {
             driverAttributes, sizeof(driverAttributes) / sizeof(wchar_t), &driverAttributesLength);
     
         if (ret == SQL_NO_DATA)
-            return results;
+            NanReturnValue(results);
 
         if (ret == SQL_ERROR)
-            return ThrowException(GetLastError());
+            return NanThrowError(GetLastError());
 
-        auto item = Object::New();
-        item->Set(String::NewSymbol("name"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
+        auto item = NanNew<Object>();
+        item->Set(NanSymbol("name"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
 
-        auto attributes = Array::New();
+        auto attributes = NanNew<Array>();
         
         wchar_t* str = driverAttributes;
         for (uint32_t j = 0;; j++) {
@@ -149,17 +149,17 @@ Handle<Value> Environment::Drivers(const Arguments& args) {
             str += wcslen(str) + 1;
         }
 
-        item->Set(String::NewSymbol("attributes"), attributes);
+        item->Set(NanSymbol("attributes"), attributes);
         results->Set(i++, item);
 
         direction = SQL_FETCH_NEXT;
     }
 }
 
-Environment::~Environment() {
+Eos::Environment::~Environment() {
     EOS_DEBUG_METHOD();
 }
 
-Persistent<FunctionTemplate> Environment::constructor_;
+Persistent<FunctionTemplate> Eos::Environment::constructor_;
 
-namespace { ClassInitializer<Environment> x; }
+namespace { ClassInitializer<Eos::Environment> x; }

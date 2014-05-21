@@ -1,5 +1,14 @@
 #pragma once 
 
+#include <nan.h>
+
+#if NODE_MODULE_VERSION > 11
+#define NODE_12
+#define IF_NODE_12(x,y) x
+#else
+#define IF_NODE_12(x,y) y
+#endif
+
 #include <node.h>
 #include <node_object_wrap.h>
 #include <node_buffer.h>
@@ -107,9 +116,9 @@ namespace Eos {
     // Create an OdbcError with an SQLSTATE but no sub-errors.
     Local<Value> OdbcError(Handle<String> message, Handle<String> state);
     
-    Handle<Value> ThrowError(const char* message);
-    Handle<Value> ThrowRangeError(const char* message);
-    Handle<Value> ThrowTypeError(const char* message);
+    _NAN_METHOD_RETURN_TYPE ThrowError(const char* message);
+    _NAN_METHOD_RETURN_TYPE ThrowRangeError(const char* message);
+    _NAN_METHOD_RETURN_TYPE ThrowTypeError(const char* message);
 
     // Use SQLGetDiagRecW to return an OdbcError representing the last error which happened
     // for the given handle. The first error will be returned, but if there are multiple
@@ -124,38 +133,46 @@ namespace Eos {
     // setting a Signature on a prototype method of an ObjectWrap class can result in segfault
     // or assertion, if the method is .call()'d on an ObjectWrap which is not the correct type,
     // e.g. Environment.prototype.connections.call({})
-    inline void SetPrototypeMethod(Handle<FunctionTemplate> target, const char* name, InvocationCallback callback, Handle<Signature> sig) {
-        auto ft = FunctionTemplate::New(callback, Handle<Value>(), sig);
-        target->PrototypeTemplate()->Set(String::NewSymbol(name), ft);
+    inline void SetPrototypeMethod(Handle<FunctionTemplate> target, const char* name, NanFunctionCallback callback, Handle<Signature> sig) {
+        NanScope();
+
+        NODE_SET_PROTOTYPE_METHOD(target, name, callback);
     }
 
-    template <class T, Handle<Value> (T::*F)(const Arguments&)> 
+    template <class T, _NAN_METHOD_RETURN_TYPE (T::*F)(_NAN_METHOD_ARGS_TYPE)> 
     struct Wrapper {
-        static Handle<Value> Fun(const Arguments& args) {
-            HandleScope scope;
+        static NAN_METHOD(Fun) {
+            NanScope();
+
             T* obj = ObjectWrap::Unwrap<T>(args.Holder());
-            return scope.Close((obj->*F)(args));
+
+#ifdef NODE_12
+            (obj->*F)(args);
+#else
+            return (obj->*F)(args);
+#endif
         }
     };
 
     template <class T, Handle<Value> (T::* F)() const> 
     struct GetterWrapper {
-        static Handle<Value> Fun(Local<String> property, const AccessorInfo& info) {
-            HandleScope scope;
-
+        static NAN_GETTER(Fun) {
+            NanScope();
+            
             auto holder = info.Holder();
             if (!T::Constructor()->HasInstance(holder))
                 return ThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
 
             T* obj = ObjectWrap::Unwrap<T>(holder);
-            return scope.Close((obj->*F)());
+
+            NanReturnValue((obj->*F)());
         }
     };
 
     template <class T, void (T::*F)(Local<Value>)> 
     struct SetterWrapper {
-        static void Fun(Local<String> property, Local<Value> value, const AccessorInfo& info) {
-            HandleScope scope;
+        static NAN_SETTER(Fun) {
+            NanScope();
 
             auto holder = info.Holder();
             if (!T::Constructor()->HasInstance(holder))
@@ -189,12 +206,11 @@ namespace Eos {
         static Handle<Object> New(Handle<String> str);
         static Handle<Object> New(Handle<String> str, Handle<String> enc);
 
-        static Handle<Object> New(Buffer* slowBuffer, size_t newLength = 0);
+        //static Handle<Object> New(Buffer* slowBuffer, size_t newLength = 0);
         static Handle<Object> New(size_t length);
-        static Handle<Function> Constructor() { return constructor_; }
+        static Handle<Function> Constructor() { return NanNew(constructor_); }
         static Handle<Object> Slice(Handle<Object> jsBuffer, SQLLEN offset, SQLLEN length);
         static const char* Unwrap(Handle<Object> jsBuffer, SQLPOINTER& buffer, SQLLEN& length);
-
     private:
         static Persistent<Function> constructor_;
     };
@@ -208,9 +224,19 @@ namespace Eos {
         return Persistent<T>::New(value);
     }
 
-#define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(target, name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
-#define EOS_SET_GETTER(target, name, type, method) target->InstanceTemplate()->SetAccessor(String::NewSymbol(name), &::Eos::GetterWrapper<type, &type::method>::Fun)
-#define EOS_SET_ACCESSOR(target, name, type, getter, setter) target->InstanceTemplate()->SetAccessor(String::NewSymbol(name), &::Eos::GetterWrapper<type, &type::getter>::Fun, &::Eos::SetterWrapper<type, &type::setter>::Fun)
+#define EOS_SET_METHOD(target, name, type, method, sig) ::Eos::SetPrototypeMethod(NanNew(target), name, &::Eos::Wrapper<type, &type::method>::Fun, sig)
+#define EOS_SET_GETTER(target, name, type, method) target->InstanceTemplate()->SetAccessor(NanSymbol(name), &::Eos::GetterWrapper<type, &type::method>::Fun)
+#define EOS_SET_ACCESSOR(target, name, type, getter, setter) target->InstanceTemplate()->SetAccessor(NanSymbol(name), &::Eos::GetterWrapper<type, &type::getter>::Fun, &::Eos::SetterWrapper<type, &type::setter>::Fun)
+
+#define EOS_OPERATION_CONSTRUCTOR(method, owner_type) _NAN_METHOD_RETURN_TYPE method(owner_type* owner, _NAN_METHOD_ARGS_TYPE args)
+
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
 
     template <typename T> T min (const T& x, const T& y) { return x < y ? x : y; }
     template <typename T> T max (const T& x, const T& y) { return x > y ? x : y; }

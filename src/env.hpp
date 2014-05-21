@@ -9,17 +9,17 @@ namespace Eos {
         ~Environment();
 
         static void Init(Handle<Object> exports);
-        static Handle<Value> New(const Arguments& args);
+        static NAN_METHOD(New);
 
     public:
         // JS methods
-        Handle<Value> NewConnection(const Arguments& args);
-        Handle<Value> DataSources(const Arguments& args);
-        Handle<Value> Drivers(const Arguments& args);
+        NAN_METHOD(NewConnection);
+        NAN_METHOD(DataSources);
+        NAN_METHOD(Drivers);
 
     public:
         // Non-JS methods
-        static Persistent<FunctionTemplate> Constructor() { return constructor_; }
+        static Handle<FunctionTemplate> Constructor() { return NanNew(constructor_); }
 
     private:
         static Persistent<FunctionTemplate> constructor_;

@@ -11,17 +11,17 @@ namespace Eos {
             EOS_DEBUG(L"Connection string: %ls\n", *connectionString_);
         }
 
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Connection) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!args[1]->IsString())
-                return ThrowTypeError("Connection string should be a string");
+                return NanThrowTypeError("Connection string should be a string");
 
             (new BrowseConnectOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "BrowseConnectOperation"; }
@@ -45,8 +45,8 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                ret == SQL_NEED_DATA ? True() : False(),
+                NanUndefined(),
+                ret == SQL_NEED_DATA ? NanTrue() : NanFalse(),
                 StringFromTChar(outConnectionString_, min(outConnectionStringLength_, (SQLSMALLINT)outConnectionStringBufferLength)) 
             };
 
@@ -63,13 +63,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Connection::BrowseConnect(const Arguments& args) {
+NAN_METHOD(Connection::BrowseConnect) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Connection::BrowseConnect() requires 2 arguments");
+        return NanThrowError("Connection::BrowseConnect() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { handle(), args[0], args[1] };
     return Begin<BrowseConnectOperation>(argv);
 }
 

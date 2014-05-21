@@ -8,7 +8,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         
 #if defined(DEBUG)
-            stackTrace_ = Persistent<StackTrace>::New(StackTrace::CurrentStackTrace(10));
+            NanAssignPersistent(stackTrace_, 
+                IF_NODE_12
+                    ( StackTrace::CurrentStackTrace(nan_isolate, 10)
+                    , NanNew<StackTrace>(10))
+                );
 #endif
         }
 
@@ -59,14 +63,14 @@ namespace Eos {
             
             if (!SQL_SUCCEEDED(ret))
                 return CallbackErrorOverride(ret);
-
-            GetCallback()->Call(Context::GetCurrent()->Global(), 0, nullptr);
+            
+            GetCallback()->Call(NanGetCurrentContext()->Global(), 0, nullptr);
         }
         
         virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
 
         Handle<Function> GetCallback() const {
-            return callback_;
+            return NanNew(callback_);
         }
 
         template <size_t argc>
@@ -87,9 +91,9 @@ namespace Eos {
         static void Init(Handle<Object> exports) {
             EOS_DEBUG_METHOD();
 
-            constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
-            constructor_->SetClassName(String::NewSymbol(TOp::Name()));
-            constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+            NanAssignPersistent(constructor_, NanNew<FunctionTemplate>(New));
+            Constructor()->SetClassName(NanSymbol(TOp::Name()));
+            Constructor()->InstanceTemplate()->SetInternalFieldCount(1);
         }
 
         Operation() : completed_(false) { 
@@ -106,13 +110,13 @@ namespace Eos {
             return Constructor()->GetFunction()->NewInstance(argc, argv); 
         }
 
-        static Handle<Value> New(const Arguments& args) {
+        static NAN_METHOD(New) {
             EOS_DEBUG_METHOD();
             
-            HandleScope scope;
+            NanScope();
 
             if (args.Length() < 2)
-                return scope.Close(ThrowError("Too few arguments"));
+                return NanThrowError("Too few arguments");
 
             if (!args.IsConstructCall()) {
                 EOS_DEBUG(L"Warning: %ls called, but args.IsConstructCall() is false\n", __FUNCTIONW__);
@@ -124,16 +128,16 @@ namespace Eos {
                 auto argv = new Handle<Value>[argc];
                 for (int i = 0; i < argc; i++)
                     argv[i] = args[i];
-                auto ret = constructor_->GetFunction()->NewInstance(args.Length(), argv);
+                auto ret = NanNew(constructor_)->GetFunction()->NewInstance(args.Length(), argv);
                 delete[] argv;
-                return ret;
+                NanReturnValue(ret);
             }
 
             if (!TOwner::Constructor()->HasInstance(args[0]))
-                return scope.Close(ThrowTypeError("Bad argument"));
+                return NanThrowTypeError("Bad argument");
 
             if (!args[args.Length() - 1]->IsFunction())
-                return scope.Close(ThrowTypeError("Last argument should be a callback function"));
+                return NanThrowTypeError("Last argument should be a callback function");
 
             auto owner = ObjectWrap::Unwrap<TOwner>(args[0]->ToObject());
 
@@ -145,7 +149,7 @@ namespace Eos {
 
             TOp* op = ObjectWrap::Unwrap<TOp>(obj->ToObject());
             op->owner_ = owner->handle_;
-            op->callback_ = Persistent<Function>::New(args[args.Length() - 1].As<Function>());
+            NanAssignPersistent(op->callback_, NanNew<Function>(args[args.Length() - 1].As<Function>()));
 
             return obj;
         };
@@ -154,7 +158,7 @@ namespace Eos {
             return constructor_;
         }
 
-        TOwner* Owner() { return ObjectWrap::Unwrap<TOwner>(owner_); }
+        TOwner* Owner() { return ObjectWrap::Unwrap<TOwner>(NanNew(owner_)); }
 
         void OnCompleted() {
             EOS_DEBUG_METHOD_FMT(L"owner: 0x%p, operation: 0x%p", Owner(), this);
@@ -176,7 +180,7 @@ namespace Eos {
     protected:
         void CallbackErrorOverride(SQLRETURN ret) {
             Handle<Value> argv[] = { Owner()->GetLastError() };
-            GetCallback()->Call(Context::GetCurrent()->Global(), 1, argv);
+            GetCallback()->Call(NanGetCurrentContext()->Global(), 1, argv);
         }
 
     private:

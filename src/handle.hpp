@@ -8,10 +8,10 @@ namespace Eos {
         EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle, HANDLE hEvent);
         ~EosHandle();
         
-        Handle<Value> Free(const Arguments& args);
+        NAN_METHOD(Free);
         SQLHANDLE GetHandle() const { return sqlHandle_; }
         Local<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }
-        IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(operation_); }
+        IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(NanNew(operation_)); }
 
         // INotify
         void INotify::Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Ref(); }
@@ -23,21 +23,21 @@ namespace Eos {
     protected:
         static void Init(
             const char* className, 
-            Handle<FunctionTemplate>& ft, 
-            InvocationCallback New);
+            Persistent<FunctionTemplate>& ft, 
+            NanFunctionCallback New);
 
         template<typename TOp, size_t argc>
-        Handle<Value> Begin(Handle<Value> (&argv)[argc]) {
+        _NAN_METHOD_RETURN_TYPE Begin(Handle<Value> (&argv)[argc]) {
             if (!IsValid())
-                return ThrowError("This handle has been freed.");
+                return NanThrowError("This handle has been freed.");
 
             if (hWait_)
-                return ThrowError("This handle is already busy.");
+                return NanThrowError("This handle is already busy.");
 
             IOperation* currentOp = nullptr;
             if (!operation_.IsEmpty()) {
                 currentOp = ObjectWrap::Unwrap<IOperation>(operation_);
-                return ThrowError("An operation is already in progress on this handle.");
+                return NanThrowError("An operation is already in progress on this handle.");
             }
 
             auto op = TOp::Construct(argv).As<Object>();
@@ -52,14 +52,14 @@ namespace Eos {
             if (!completedSynchronously) {
                 EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
                 if (hWait_ = Eos::Wait(this))
-                    operation_ = Persistent<Object>::New(op);
+                    NanAssignPersistent(operation_, op);
                 else 
                     return ThrowException(OdbcError("Unable to begin asynchronous operation"));
             } else {
                 EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
             }
             
-            return Undefined();
+            NanReturnUndefined();
         }
 
         bool IsValid() const { return sqlHandle_ != SQL_NULL_HANDLE; }

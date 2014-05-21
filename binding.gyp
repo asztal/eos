@@ -12,7 +12,7 @@
           'src/conn.driverConnect.cpp',
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
-		'src/operation.hpp',
+        'src/operation.hpp',
         'src/parameter.hpp', 'src/parameter.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
           'src/stmt.describeCol.cpp',
@@ -22,12 +22,15 @@
           'src/stmt.getData.cpp',
           'src/stmt.moreResults.cpp',
           'src/stmt.numResultCols.cpp',
-          'src/stmt.paramData.cpp'
-          'src/stmt.prepare.cpp'
+          'src/stmt.paramData.cpp',
+          'src/stmt.prepare.cpp',
           'src/stmt.putData.cpp'
       ],
       'defines' : [
-        'UNICODE', 'DEBUG'
+        'UNICODE'
+      ],
+      'include_dirs': [
+        "<!(node -e \"require('nan')\")"
       ],
       'conditions' : [
         [ 'OS == "linux"', {

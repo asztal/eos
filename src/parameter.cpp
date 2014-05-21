@@ -7,18 +7,18 @@ using namespace Eos::Buffers;
 Persistent<FunctionTemplate> Parameter::constructor_;
 
 void Parameter::Init(Handle<Object> exports) {
-    constructor_ = Persistent<FunctionTemplate>::New(FunctionTemplate::New());
-    constructor_->SetClassName(String::NewSymbol("Parameter"));
-    constructor_->InstanceTemplate()->SetInternalFieldCount(1);
+    NanAssignPersistent(constructor_, NanNew<FunctionTemplate>());
+    Constructor()->SetClassName(NanSymbol("Parameter"));
+    Constructor()->InstanceTemplate()->SetInternalFieldCount(1);
 
-    auto sig0 = Signature::New(constructor_, 0, nullptr);
+    auto sig0 = NanNew<Signature>(Constructor(), 0, nullptr);
 
-    EOS_SET_ACCESSOR(constructor_, "value", Parameter, GetValue, SetValue);
-    EOS_SET_GETTER(constructor_, "buffer", Parameter, GetBuffer);
-    EOS_SET_GETTER(constructor_, "bufferLength", Parameter, GetBufferLength);
-    EOS_SET_GETTER(constructor_, "bytesInBuffer", Parameter, GetBytesInBuffer);
-    EOS_SET_GETTER(constructor_, "index", Parameter, GetIndex);
-    EOS_SET_GETTER(constructor_, "kind", Parameter, GetKind);
+    EOS_SET_ACCESSOR(Constructor(), "value", Parameter, GetValue, SetValue);
+    EOS_SET_GETTER(Constructor(), "buffer", Parameter, GetBuffer);
+    EOS_SET_GETTER(Constructor(), "bufferLength", Parameter, GetBufferLength);
+    EOS_SET_GETTER(Constructor(), "bytesInBuffer", Parameter, GetBytesInBuffer);
+    EOS_SET_GETTER(Constructor(), "index", Parameter, GetIndex);
+    EOS_SET_GETTER(Constructor(), "kind", Parameter, GetKind);
 }
 
 Parameter::Parameter
@@ -37,36 +37,37 @@ Parameter::Parameter
     , cType_(cType)
     , buffer_(buffer)
     , length_(length)
-    , bufferObject_(Persistent<Object>::New(bufferObject))
     , indicator_(indicator)
 {
+    NanAssignPersistent(bufferObject_, bufferObject);
+
     EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
 }
 
 Handle<Value> Parameter::GetBuffer() const {
-    return bufferObject_;
+    return NanNew(bufferObject_);
 }
 
 Handle<Value> Parameter::GetBufferLength() const {
-    return Integer::New(length_);
+    return NanNew<Integer>(length_);
 }
 
 Handle<Value> Parameter::GetBytesInBuffer() const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
-        return ThrowError("Parameter::GetBytesInBuffer can only be called for bound output parameters");
+        return NanUndefined();
 
     if (indicator_ == SQL_NULL_DATA)
-        return Null();
+        return NanNull();
 
-    return Integer::New(BytesInBuffer());
+    return NanNew<Integer>(BytesInBuffer());
 }
 
 Handle<Value> Parameter::GetIndex() const {
-    return Integer::New(parameterNumber_);
+    return NanNew<Integer>(parameterNumber_);
 }
 
 Handle<Value> Parameter::GetKind() const {
-    return Integer::New(inOutType_);
+    return NanNew<Integer>(inOutType_);
 }
 
 SQLLEN Parameter::BytesInBuffer() const {
@@ -162,14 +163,14 @@ Handle<Value> Parameter::Marshal(
     if (buffer == nullptr)
         param->buffer_ = param;
 
-    auto obj = constructor_->GetFunction()->NewInstance();
+    auto obj = Constructor()->GetFunction()->NewInstance();
     param->Wrap(obj);
     return obj;
 }
 
 Handle<Value> Parameter::GetValue() const {
     if (inOutType_ != SQL_PARAM_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT)
-        return ThrowError("GetValue can only be called for bound output parameters");
+        return NanThrowError("GetValue can only be called for bound output parameters");
 
     if (indicator_ == SQL_NULL_DATA)
         return Null();

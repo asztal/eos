@@ -21,7 +21,7 @@ module.exports = {
 
     env: new Eos.Environment(),
 
-    conn: function conn(cb) { 
+    conn: function _conn(cb) { 
         var conn = this.env.newConnection();
         conn.driverConnect(settings.connectionString, function(err) {
             if (err)
@@ -55,11 +55,11 @@ module.exports = {
     closeTo: function closeTo(delta) {
         return function (x, y) {
             return Math.abs(x - y) < delta;
-        }
+        };
     },
     
     pp: function pp(x) {
-        x = Utils.inspect(x)
+        x = Utils.inspect(x);
         if (x.length > 50)
             x = x.substr(0, 50) + "...";
         return x;

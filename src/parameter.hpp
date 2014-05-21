@@ -38,7 +38,7 @@ namespace Eos {
 
         void* Buffer() const throw() { return buffer_; }
         SQLLEN Length() const throw() { return length_; }
-        Handle<Object> BufferObject() const throw() { return bufferObject_; }
+        Handle<Object> BufferObject() const throw() { return NanNew(bufferObject_); }
         
         SQLUSMALLINT ParameterNumber() const throw() { return parameterNumber_; }
         SQLSMALLINT InOutType() const throw() { return inOutType_; }
@@ -48,7 +48,7 @@ namespace Eos {
         const SQLLEN& Indicator() const throw() { return indicator_; }
         SQLLEN& Indicator() throw() { return indicator_; }
 
-        static Handle<FunctionTemplate> Constructor() { return constructor_; }
+        static Handle<FunctionTemplate> Constructor() { return NanNew(constructor_); }
 
     private:
         static Persistent<FunctionTemplate> constructor_;

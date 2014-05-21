@@ -6,14 +6,14 @@ namespace Eos {
     struct DisconnectOperation: Operation<Connection, DisconnectOperation> {
         static const char* Name() { return "DisconnectOperation"; }
 
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Connection) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             (new DisconnectOperation())->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         SQLRETURN CallOverride() {
@@ -23,13 +23,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Connection::Disconnect(const Arguments& args) {
+NAN_METHOD(Connection::Disconnect) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Connection::Disconnect() requires a callback");
+        return NanThrowError("Connection::Disconnect() requires a callback");
 
-    Handle<Value> argv[] = { handle_, args[0] };
+    Handle<Value> argv[] = { handle(), args[0] };
     return Begin<DisconnectOperation>(argv);
 }
 

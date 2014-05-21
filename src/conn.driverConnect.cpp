@@ -10,17 +10,17 @@ namespace Eos {
             EOS_DEBUG_METHOD_FMT(L"%ls", *connectionString_);
         }
 
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Connection) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!args[1]->IsString())
-                return ThrowTypeError("Connection string should be a string");
+                return NanThrowTypeError("Connection string should be a string");
 
             (new DriverConnectOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "DriverConnectOperation"; }
@@ -43,13 +43,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Connection::DriverConnect(const Arguments& args) {
+NAN_METHOD(Connection::DriverConnect) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Connection::DriverConnect() requires 2 arguments");
+        return NanThrowError("Connection::DriverConnect() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { handle(), args[0], args[1] };
     return Begin<DriverConnectOperation>(argv);
 }
 

@@ -12,7 +12,7 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle, HANDLE hEve
 }
 
 EosHandle::~EosHandle() {
-    EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, handle_);
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, handle());
     
     assert(operation_.IsEmpty());
 
@@ -29,14 +29,16 @@ EosHandle::~EosHandle() {
 }
 
 void EosHandle::Init ( const char* className
-                     , Handle<FunctionTemplate>& ft
-                     , InvocationCallback New) 
+                     , Persistent<FunctionTemplate>& constructor
+                     , NanFunctionCallback New) 
 {
-    ft = Persistent<FunctionTemplate>::New(FunctionTemplate::New(New));
-    ft->SetClassName(String::NewSymbol(className));
+    auto ft = NanNew<FunctionTemplate>(New);
+    NanAssignPersistent(constructor, ft);
+
+    ft->SetClassName(NanSymbol(className));
     ft->InstanceTemplate()->SetInternalFieldCount(1);
 
-    auto sig0 = Signature::New(ft);
+    auto sig0 = NanNew<Signature>(ft);
     EOS_SET_METHOD(ft, "free", EosHandle, Free, sig0);
 }
 
@@ -45,22 +47,22 @@ void EosHandle::Notify() {
     
     assert(!operation_.IsEmpty());
 
-    HandleScope scope;
-    Handle<Object> op = operation_;
-    operation_.Clear();
+    NanScope();
+    Handle<Object> op = NanNew(operation_);
+    NanDisposePersistent(operation_);
     hWait_ = nullptr;
 
     ObjectWrap::Unwrap<IOperation>(op)->OnCompleted();
 }
 
-Handle<Value> EosHandle::Free(const Arguments& args) {
+NAN_METHOD(EosHandle::Free) {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
 
     auto ret = FreeHandle();
     if (!SQL_SUCCEEDED(ret))
-        return ThrowException(GetLastError());
+        return NanThrowError(GetLastError());
 
-    return Undefined();
+    NanReturnUndefined();
 }
 
 SQLRETURN EosHandle::FreeHandle() {
@@ -84,7 +86,7 @@ SQLRETURN EosHandle::FreeHandle() {
         hEvent_ = nullptr;
     }
 
-    operation_.Clear();
+    NanDisposePersistent(operation_);
 
     return SQL_SUCCESS;
 }
