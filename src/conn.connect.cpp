@@ -26,11 +26,11 @@ namespace Eos {
             delete[] password_;
         }
 
-        static Handle<Value> New(Connection* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Connection) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             wchar_t* str[3] = { nullptr, nullptr, nullptr };
             SQLLEN len[3] = { 0, 0, 0 };
@@ -44,7 +44,7 @@ namespace Eos {
                if (args[i+1]->IsString())
                    len[i] = 1;
                else 
-                   return ThrowTypeError("Expected a string");
+                   return NanThrowTypeError("Expected a string");
             }
 
             bool oom = false;
@@ -65,7 +65,7 @@ namespace Eos {
                 delete[] str[0];
                 delete[] str[1];
                 delete[] str[2];
-                return ThrowError("Out of memory");
+                return NanThrowError("Out of memory");
             }
 
             (new ConnectOperation(
@@ -73,7 +73,7 @@ namespace Eos {
                 str[1], len[1], 
                 str[2], len[2]))->Wrap(args.Holder());;
 
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "ConnectOperation"; }
@@ -95,20 +95,20 @@ namespace Eos {
     };
 }
 
-Handle<Value> Connection::Connect(const Arguments& args) {
+NAN_METHOD(Connection::Connect) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Connection::Connect() requires 2 arguments");
+        return NanThrowError("Connection::Connect() requires 2 arguments");
 
     if (args.Length() == 2) {
-        Handle<Value> argv[] = { handle_, args[0], args[1] };
+        Handle<Value> argv[] = { handle(), args[0], args[1] };
         return Begin<ConnectOperation>(argv);
     } else if (args.Length() == 3) {
-        Handle<Value> argv[] = { handle_, args[0], args[1], args[2] };
+        Handle<Value> argv[] = { handle(), args[0], args[1], args[2] };
         return Begin<ConnectOperation>(argv);
     } else {
-        Handle<Value> argv[] = { handle_, args[0], args[1], args[2], args[3] };
+        Handle<Value> argv[] = { handle(), args[0], args[1], args[2], args[3] };
         return Begin<ConnectOperation>(argv);
     }
 }

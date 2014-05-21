@@ -35,7 +35,7 @@ describe("A newly created statement", function () {
 
     function testInputParam(val, kind, type, digits, cmp, gdType) {
         if (!cmp)
-            cmp = function (x, y) { return x === y };
+            cmp = function (x, y) { return x === y; };
 
         describe("when binding " + Utils.inspect(val) + " as the first parameter", function () {
             it("should allow " + type + " and " + kind + (gdType ? " into " + gdType : ""), function (done) {
@@ -125,9 +125,9 @@ describe("A newly created statement", function () {
         });
     }
 
-    var undefined = {}.x;
-    testOutputParam("select ? = 42", "SQL_INTEGER", 0, undefined, 42);
-    testOutputParam("select ? = 42", "SQL_REAL", 0, undefined, 42.0);
+    var undef = {}.x;
+    testOutputParam("select ? = 42", "SQL_INTEGER", 0, undef, 42);
+    testOutputParam("select ? = 42", "SQL_REAL", 0, undef, 42.0);
     testOutputParam("select ? = 'xyzzy'", "SQL_VARCHAR", 0, null, 'xyzzy', new Buffer(200));
     testOutputParam("select ? = 'xyzzy'", "SQL_WVARCHAR", 0, null, 'xyzzy', new Buffer(200));
     testOutputParam("select ? = N'This is a snowman: ☃'", "SQL_WVARCHAR", 0, null, 'This is a snowman: \u2603', new Buffer(200));
@@ -238,8 +238,8 @@ describe("A newly created statement", function () {
                                                 return getDataLoop(fullResult);
 
                                             if (!cmp(fullResult, val)) {
-                                                console.log(fullResult.length.toString().yellow.bold)
-                                                console.log(val.length.toString().green.bold)
+                                                console.log(fullResult.length.toString().yellow.bold);
+                                                console.log(val.length.toString().green.bold);
                                                 return done("Not equal: " + pp(fullResult) + " != " + pp(val));
                                             }
 

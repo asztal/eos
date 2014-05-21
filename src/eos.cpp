@@ -82,8 +82,12 @@ namespace Eos {
                 , next(0) 
             { }
         } *firstCallback = 0;
-
+        
+#ifdef NODE_12
+        void ProcessCallbackQueue(uv_async_t*);
+#else
         void ProcessCallbackQueue(uv_async_t*, int);
+#endif
 
         void InitialiseWaiter() {
             assert(initCount >= 0);
@@ -136,7 +140,11 @@ namespace Eos {
             }
         }
 
+#ifdef NODE_12
+        void ProcessCallbackQueue(uv_async_t*) {
+#else
         void ProcessCallbackQueue(uv_async_t*, int) {
+#endif
             EOS_DEBUG_METHOD();
 
             uv_rwlock_rdlock(&rwlock);
@@ -274,7 +282,9 @@ namespace Eos {
 
 #pragma endregion
     void PrintStackTrace() {
-        PrintStackTrace(StackTrace::CurrentStackTrace(10));
+        PrintStackTrace(
+            IF_NODE_12( StackTrace::CurrentStackTrace(nan_isolate, 10)
+                      , NanNew<StackTrace>(10)));
     }
 
     void PrintStackTrace(Handle<StackTrace> stackTrace) {
@@ -300,7 +310,7 @@ namespace Eos {
         void InitError(Handle<Object> exports) {
             EOS_DEBUG_METHOD();
 
-            HandleScope scope;
+            NanScope();
 
             // http://stackoverflow.com/a/17936621/1794628
             auto code = 
@@ -322,9 +332,9 @@ namespace Eos {
             OdbcError.prototype = new II();\
             OdbcError";
 
-            odbcErrorConstructor = Persistent<Function>::New(Handle<Function>::Cast(Script::Compile(String::New(code))->Run()));
+            NanAssignPersistent(odbcErrorConstructor, Handle<Function>::Cast(Script::Compile(NanNew<String>(code))->Run()));
 
-            exports->Set(String::NewSymbol("OdbcError"), odbcErrorConstructor, ReadOnly);
+            exports->Set(NanSymbol("OdbcError"), NanNew(odbcErrorConstructor), ReadOnly);
         }
     }
 
@@ -333,15 +343,15 @@ namespace Eos {
         assert(!message.IsEmpty());
 
         Handle<Value> args[] = { message };
-        return odbcErrorConstructor->CallAsConstructor(1, args);
+        return NanNew(odbcErrorConstructor)->CallAsConstructor(1, args);
     }
 
     Local<Value> OdbcError(const char* message) {
-        return OdbcError(String::New(message));
+        return OdbcError(NanNew<String>(message));
     }
 
     Local<Value> OdbcError(const wchar_t* message) {
-        return OdbcError(String::New(reinterpret_cast<const uint16_t*>(message)));
+        return OdbcError(NanNew<String>(reinterpret_cast<const uint16_t*>(message)));
     }
 
     Local<Value> OdbcError(Handle<String> message, Handle<String> state) {
@@ -350,7 +360,7 @@ namespace Eos {
         assert(!state.IsEmpty());
 
         Handle<Value> args[] = { message, state };
-        return odbcErrorConstructor->CallAsConstructor(2, args);
+        return NanNew(odbcErrorConstructor)->CallAsConstructor(2, args);
     }
 
     Local<Value> OdbcError(Handle<String> message, Handle<String> state, Handle<Array> subErrors) {
@@ -360,26 +370,25 @@ namespace Eos {
         assert(!subErrors.IsEmpty());
 
         Handle<Value> args[] = { message, state, subErrors };
-        return odbcErrorConstructor->CallAsConstructor(3, args);
+        return NanNew(odbcErrorConstructor)->CallAsConstructor(3, args);
     }
 #pragma endregion
     
-    Handle<Value> ThrowError(const char* message) {
-        return ThrowException(Exception::Error(String::New(message)));
+    _NAN_METHOD_RETURN_TYPE ThrowError(const char* message) {
+        return NanThrowError(message);
     }
 
-    Handle<Value> ThrowRangeError(const char* message) {
-        return ThrowException(Exception::RangeError(String::New(message)));
+    _NAN_METHOD_RETURN_TYPE ThrowRangeError(const char* message) {
+        return NanThrowRangeError(message);
     }
 
-    Handle<Value> ThrowTypeError(const char* message) {
-        return ThrowException(Exception::TypeError(String::New(message)));
+    _NAN_METHOD_RETURN_TYPE ThrowTypeError(const char* message) {
+        return NanThrowTypeError(message);
     }
 
+    // Assumes a valid handle scope exists
     Local<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle) {
         EOS_DEBUG_METHOD();
-
-        HandleScope scope;
 
         assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_DESC);
         assert(handle != SQL_NULL_HANDLE);
@@ -395,15 +404,15 @@ namespace Eos {
             nullptr);
 
         if (!SQL_SUCCEEDED(ret))
-            return scope.Close(Exception::Error(String::New("Unknown ODBC error (error calling SQLGetDiagField)")));
+            return NanError("Unknown ODBC error (error calling SQLGetDiagField)");
 
         if (nFields == 0) {
             EOS_DEBUG(L"No error to return!\n");
-            return scope.Close(Null());
+            return NanNull();
         }
 
         assert(nFields >= 0 && nFields < INT_MAX);
-        auto errors = Array::New(nFields);
+        auto errors = NanNew<Array>(nFields);
         Local<String> resultMessage, resultState;
         Local<Object> result;
 
@@ -427,9 +436,9 @@ namespace Eos {
             if (SQL_SUCCEEDED(ret))
                 item = OdbcError(msg = StringFromTChar(message), st = StringFromTChar(state));
             else if(ret == SQL_INVALID_HANDLE)
-                item = OdbcError(msg = String::New("Error calling SQLGetDiagRec: SQL_INVALID_HANDLE"));
+                item = OdbcError(msg = NanNew<String>("Error calling SQLGetDiagRec: SQL_INVALID_HANDLE"));
             else
-                item = OdbcError(msg = String::New("Unknown ODBC error"));
+                item = OdbcError(msg = NanNew<String>("Unknown ODBC error"));
 
             if (i == 0) {
                 resultMessage = msg;
@@ -440,14 +449,13 @@ namespace Eos {
         }
 
         if (!resultState.IsEmpty())
-            return scope.Close(OdbcError(resultMessage, resultState, errors));
+            return OdbcError(resultMessage, resultState, errors);
         else
-            return scope.Close(OdbcError(resultMessage));
+            return OdbcError(resultMessage);
     }
 
     Local<String> StringFromTChar(const SQLWCHAR* string, int length) {
-        HandleScope scope;
-        return scope.Close(String::New(reinterpret_cast<const uint16_t*>(string), length));
+        return NanNew<String>(reinterpret_cast<const uint16_t*>(string), length);
     }
 
     
@@ -499,20 +507,20 @@ namespace Eos {
         
         switch(cType) {
         case SQL_C_SLONG:
-            return Number::New(*reinterpret_cast<long*>(buffer));
+            return NanNew<Number>(*reinterpret_cast<long*>(buffer));
 
         case SQL_C_DOUBLE:
-            return Number::New(*reinterpret_cast<double*>(buffer));
+            return NanNew<Number>(*reinterpret_cast<double*>(buffer));
         
         case SQL_C_BIT:
-            return *reinterpret_cast<bool*>(buffer) ? True() : False();
+            return *reinterpret_cast<bool*>(buffer) ? NanTrue() : NanFalse();
 
         case SQL_C_CHAR:
             // Subtract one character iff buffer full, due to null terminator
             assert(indicator >= 1);
             if (indicator == bufferLength)
                 --indicator;
-            return String::New(reinterpret_cast<const char*>(buffer), indicator);
+            return NanNew<String>(reinterpret_cast<const char*>(buffer), indicator);
 
         case SQL_C_WCHAR:
             // Subtract one character iff buffer full, due to null terminator
@@ -533,25 +541,25 @@ namespace Eos {
             tm.tm_sec = ts.second;
             
 #if defined(WIN32)
-        return Date::New((double(mktime(&tm)) * 1000)
+        return NanNew<Date>((double(mktime(&tm)) * 1000)
                + (ts.fraction / 1000000.0));
 #else
-        return Date::New((double(timelocal(&tm)) * 1000)
+        return NanNew<Date>((double(timelocal(&tm)) * 1000)
                + (ts.fraction / 1000000.0));
 #endif
         }
 
         default:
-            return Undefined();
+            return NanUndefined();
         }
     }
 
     void JSBuffer::Init(Handle<Object>) {
-        auto val = Context::GetCurrent()->Global()->Get(String::NewSymbol("Buffer"));
+        auto val = NanGetCurrentContext()->Global()->Get(NanSymbol("Buffer"));
         if (!val->IsFunction())
-            ThrowError("The global Buffer object is not a function. Please don't duck punch the Buffer object when using Eos.");
+            return NanThrowError("The global Buffer object is not a function. Please don't duck punch the Buffer object when using Eos.");
 
-        constructor_ = Persistent<Function>::New(val.As<Function>());
+        NanAssignPersistent(constructor_, val.As<Function>());
     }
 
     Handle<Object> JSBuffer::New(Handle<String> string, Handle<String> enc) {
@@ -571,10 +579,20 @@ namespace Eos {
     Handle<Object> JSBuffer::New(size_t length) {
         assert(length <= UINT32_MAX);
 
-        Handle<Value> argv[] = { Uint32::New(length) };
+        Handle<Value> argv[] = { NanNew<Uint32>(length) };
         return Constructor()->NewInstance(1, argv);
     }
 
+#ifdef NODE_12
+    const char* JSBuffer::Unwrap(Handle<Object> handle, SQLPOINTER& buffer, SQLLEN& bufferLength) {
+        if (!Buffer::HasInstance(handle))
+            return "Invalid parameter (not a Buffer object)";
+        
+        buffer = Buffer::Data(handle);
+        bufferLength = Buffer::Length(handle);
+        return nullptr;
+    }
+#else
     const char* JSBuffer::Unwrap(Handle<Object> handle, SQLPOINTER& buffer, SQLLEN& bufferLength) {
         if (Buffer::HasInstance(handle)) {
             buffer = Buffer::Data(handle);
@@ -582,11 +600,11 @@ namespace Eos {
             return nullptr;
         }
 
-        auto parent = handle->Get(String::NewSymbol("parent"));
-        auto sliceOffset = handle->Get(String::NewSymbol("offset"))->Int32Value();
-        auto sliceLength = handle->Get(String::NewSymbol("length"))->Int32Value();
+        auto parent = handle->Get(NanSymbol("parent"));
+        auto sliceOffset = handle->Get(NanSymbol("offset"))->Int32Value();
+        auto sliceLength = handle->Get(NanSymbol("length"))->Int32Value();
                 
-        if (!parent->IsObject() || !Buffer::constructor_template->HasInstance(parent))
+        if (!parent->IsObject() || !Buffer::HasInstance(parent))
             return "Invalid Buffer object (parent is not a SlowBuffer)";
         Buffer* slow = ObjectWrap::Unwrap<Buffer>(parent.As<Object>());
 
@@ -601,15 +619,16 @@ namespace Eos {
 
         return nullptr;
     }
+#endif
 
     // The first parameter might actually be a buffer, might be a SlowBuffer...
     // Doesn't really matter.
     Handle<Object> JSBuffer::Slice(Handle<Object> buffer, SQLLEN offset, SQLLEN length) {
-        auto slice = buffer->Get(String::NewSymbol("slice"));
+        auto slice = buffer->Get(NanSymbol("slice"));
         assert (slice->IsFunction() && "The passed buffer object does not have a 'slice' function");
 
         auto sliceFn = Local<Function>::Cast(slice);
-        Local<Value> argv[] = { Integer::New(offset), Integer::New(length) };
+        Local<Value> argv[] = { NanNew<Integer>(offset), NanNew<Integer>(length) };
         auto result = sliceFn->Call(buffer, 2, argv);
 
         assert(result->IsObject() && "The result of slice() is not an object");

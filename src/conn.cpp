@@ -10,16 +10,16 @@ void Connection::Init(Handle<Object> exports)  {
 
     EosHandle::Init("Connection", constructor_, New);
 
-    auto sig0 = Signature::New(constructor_);
-    EOS_SET_METHOD(constructor_, "connect", Connection, Connect, sig0);
-    EOS_SET_METHOD(constructor_, "driverConnect", Connection, DriverConnect, sig0);
-    EOS_SET_METHOD(constructor_, "browseConnect", Connection, BrowseConnect, sig0);
-    EOS_SET_METHOD(constructor_, "newStatement", Connection, NewStatement, sig0);
-    EOS_SET_METHOD(constructor_, "nativeSql", Connection, NativeSql, sig0);
-    EOS_SET_METHOD(constructor_, "disconnect", Connection, Disconnect, sig0);
+    auto sig0 = NanNew<Signature>(Constructor());
+    EOS_SET_METHOD(Constructor(), "connect", Connection, Connect, sig0);
+    EOS_SET_METHOD(Constructor(), "driverConnect", Connection, DriverConnect, sig0);
+    EOS_SET_METHOD(Constructor(), "browseConnect", Connection, BrowseConnect, sig0);
+    EOS_SET_METHOD(Constructor(), "newStatement", Connection, NewStatement, sig0);
+    EOS_SET_METHOD(Constructor(), "nativeSql", Connection, NativeSql, sig0);
+    EOS_SET_METHOD(Constructor(), "disconnect", Connection, Disconnect, sig0);
 }
 
-Connection::Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
+Connection::Connection(Eos::Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
     : environment_(environment)
     , EosHandle(SQL_HANDLE_DBC, hDbc, hEvent)
 {
@@ -30,21 +30,21 @@ Connection::~Connection() {
     EOS_DEBUG_METHOD();
 }
 
-Handle<Value> Connection::New(const Arguments& args) {
+NAN_METHOD(Connection::New) {
     EOS_DEBUG_METHOD();
     
-    HandleScope scope;
+    NanScope();
 
     if (args.Length() < 1)
-        return scope.Close(ThrowException(OdbcError("Connection::New() requires at least one argument")));
+        return NanThrowError(OdbcError("Connection::New() requires at least one argument"));
 
     if (!args.IsConstructCall()) {
         Handle<Value> argv[1] = { args[0] };
-        return scope.Close(constructor_->GetFunction()->NewInstance(1, argv));
+        NanReturnValue(Constructor()->GetFunction()->NewInstance(1, argv));
     } 
     
     if (!Environment::Constructor()->HasInstance(args[0]))
-        return scope.Close(ThrowException(OdbcError("First argument must be an Environment")));
+        return NanThrowError(OdbcError("First argument must be an Environment"));
 
     auto env = ObjectWrap::Unwrap<Environment>(args[0]->ToObject());
         
@@ -52,7 +52,7 @@ Handle<Value> Connection::New(const Arguments& args) {
 
     auto ret = SQLAllocHandle(SQL_HANDLE_DBC, env->GetHandle(), &hDbc);
     if (!SQL_SUCCEEDED(ret))
-        return scope.Close(ThrowException(env->GetLastError()));
+        return NanThrowError(env->GetLastError());
 
     ret = SQLSetConnectAttrW(
         hDbc, 
@@ -63,13 +63,13 @@ Handle<Value> Connection::New(const Arguments& args) {
     if (!SQL_SUCCEEDED(ret)) {
         auto error = Eos::GetLastError(SQL_HANDLE_DBC, hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-        return ThrowException(error);
+        return NanThrowError(error);
     }
 
     auto hEvent = CreateEventW(nullptr, false, false, nullptr);
     if (!hEvent) {
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-        return scope.Close(ThrowError("Unable to create wait handle"));
+        return NanThrowError("Unable to create wait handle");
     }
 
     ret = SQLSetConnectAttrW(
@@ -82,30 +82,30 @@ Handle<Value> Connection::New(const Arguments& args) {
         auto error = Eos::GetLastError(SQL_HANDLE_DBC, hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
         CloseHandle(hEvent);
-        return ThrowException(error);
+        return NanThrowError(error);
     }
 
     (new Connection(env, hDbc, hEvent))->Wrap(args.Holder());
 
-    return scope.Close(args.Holder());
+    NanReturnValue(args.Holder());
 }
 
-Handle<Value> Connection::NewStatement(const Arguments& args) {
+NAN_METHOD(Connection::NewStatement) {
     EOS_DEBUG_METHOD();
 
-    Handle<Value> argv[1] = { handle_ };
-    return Statement::Constructor()->GetFunction()->NewInstance(1, argv);
+    Handle<Value> argv[1] = { handle() };
+    NanReturnValue(Statement::Constructor()->GetFunction()->NewInstance(1, argv));
 }
 
-Handle<Value> Connection::NativeSql(const Arguments& args) {
+NAN_METHOD(Connection::NativeSql) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Connection::NativeSql requires an argument");
+        return NanThrowError("Connection::NativeSql requires an argument");
 
     WStringValue odbcSql(args[0]);
     if (!*odbcSql)
-        return ThrowTypeError("The first argument must be a string or convertible to a string");
+        return NanThrowTypeError("The first argument must be a string or convertible to a string");
 
     SQLWCHAR buffer[4096];
     SQLINTEGER charsAvailable;
@@ -117,7 +117,7 @@ Handle<Value> Connection::NativeSql(const Arguments& args) {
         &charsAvailable);
 
     if (!SQL_SUCCEEDED(ret))
-        return ThrowException(GetLastError());
+        return NanThrowError(GetLastError());
 
     // Need more room for result (4095 chars not enough)
     // >= because if they are equal, the \0 will displace the last char
@@ -126,7 +126,7 @@ Handle<Value> Connection::NativeSql(const Arguments& args) {
         SQLINTEGER newCharsAvailable;
 
         if (!buffer)
-            return ThrowError("Out of memory allocating space for native SQL");
+            return NanThrowError("Out of memory allocating space for native SQL");
 
         ret = SQLNativeSqlW(
             GetHandle(),
@@ -135,7 +135,7 @@ Handle<Value> Connection::NativeSql(const Arguments& args) {
 
         if (!SQL_SUCCEEDED(ret)) {
             delete[] buffer;
-            return ThrowException(GetLastError());
+            return NanThrowError(GetLastError());
         }
 
         if (newCharsAvailable > charsAvailable) {
@@ -145,9 +145,9 @@ Handle<Value> Connection::NativeSql(const Arguments& args) {
 
         auto result = StringFromTChar(buffer, newCharsAvailable);
         delete[] buffer;
-        return result;
+        NanReturnValue(result);
     } else {
-        return StringFromTChar(buffer, charsAvailable);
+        NanReturnValue(StringFromTChar(buffer, charsAvailable));
     }
 }
 

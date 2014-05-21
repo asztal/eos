@@ -15,20 +15,20 @@ namespace Eos {
 
     public:
         // JS methods
-        static Handle<Value> New(const Arguments& args);
-        Handle<Value> Connect(const Arguments& args);
-        Handle<Value> DriverConnect(const Arguments& args);
-        Handle<Value> BrowseConnect(const Arguments& args);
-        Handle<Value> NewStatement(const Arguments& args);
-        Handle<Value> NativeSql(const Arguments& args);
-        Handle<Value> Disconnect(const Arguments& args);
+        static NAN_METHOD(New);
+        NAN_METHOD(Connect);
+        NAN_METHOD(DriverConnect);
+        NAN_METHOD(BrowseConnect);
+        NAN_METHOD(NewStatement);
+        NAN_METHOD(NativeSql);
+        NAN_METHOD(Disconnect);
 
     public:
         // Non-JS methods
-        static Persistent<FunctionTemplate> Constructor() { return constructor_; }
+        static Handle<FunctionTemplate> Constructor() { return NanNew(constructor_); }
 
     private:
-        Environment* environment_;
+        Eos::Environment* environment_;
         static Persistent<FunctionTemplate> constructor_;
     };
 }

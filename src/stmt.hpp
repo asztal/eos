@@ -17,30 +17,30 @@ namespace Eos {
 
     public:
 
-        static Handle<Value> New(const Arguments& args);
-        Handle<Value> Prepare(const Arguments& args);
-        Handle<Value> ExecDirect(const Arguments& args);
-        Handle<Value> Execute(const Arguments& args);
-        Handle<Value> Fetch(const Arguments& args);
-        Handle<Value> GetData(const Arguments& args);
-        Handle<Value> Cancel(const Arguments& args);
-        Handle<Value> NumResultCols(const Arguments& args);
-        Handle<Value> DescribeCol(const Arguments& args);
+        static NAN_METHOD(New);
+        NAN_METHOD(Prepare);
+        NAN_METHOD(ExecDirect);
+        NAN_METHOD(Execute);
+        NAN_METHOD(Fetch);
+        NAN_METHOD(GetData);
+        NAN_METHOD(Cancel);
+        NAN_METHOD(NumResultCols);
+        NAN_METHOD(DescribeCol);
 
-        Handle<Value> ParamData(const Arguments& args);
-        Handle<Value> PutData(const Arguments& args);
-        Handle<Value> MoreResults(const Arguments& args);
+        NAN_METHOD(ParamData);
+        NAN_METHOD(PutData);
+        NAN_METHOD(MoreResults);
         
-        Handle<Value> BindParameter(const Arguments& args);
-        Handle<Value> SetParameterName(const Arguments& args);
-        Handle<Value> UnbindParameters(const Arguments& args);
+        NAN_METHOD(BindParameter);
+        NAN_METHOD(SetParameterName);
+        NAN_METHOD(UnbindParameters);
 
-        Handle<Value> CloseCursor(const Arguments& args);
+        NAN_METHOD(CloseCursor);
 
     public:
 
         // Non-JS methods
-        static Persistent<FunctionTemplate> Constructor() { return constructor_; }
+        static Handle<FunctionTemplate> Constructor() { return NanNew(constructor_); }
 
     protected:
         

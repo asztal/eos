@@ -3,6 +3,8 @@ var assert = require('assert'),
     domain = require('domain'),
     eos = require('./');
 
+function log(x) { console.log(String(x).bold.yellow); }
+
 if (true) {
     var jasmine = require("jasmine-node");
     jasmine.executeSpecsInFolder({
@@ -12,8 +14,6 @@ if (true) {
     });
 } else {
     var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=.\\CONNECT;Trusted_Connection=Yes";
-
-    function log(x) { console.log(String(x).bold.yellow); }
 
     var d = domain.create();
 
