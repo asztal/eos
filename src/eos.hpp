@@ -154,32 +154,40 @@ namespace Eos {
         }
     };
 
-    template <class T, Handle<Value> (T::* F)() const> 
+    template <class T, _NAN_GETTER_RETURN_TYPE (T::* F)(Local<String>, _NAN_GETTER_ARGS) const> 
     struct GetterWrapper {
         static NAN_GETTER(Fun) {
             NanScope();
             
-            auto holder = info.Holder();
+            auto holder = args.Holder();
             if (!T::Constructor()->HasInstance(holder))
                 return ThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
 
             T* obj = ObjectWrap::Unwrap<T>(holder);
 
-            NanReturnValue((obj->*F)());
+#ifdef NODE_12
+            return (obj->*F)(property, args);
+#else
+            return (obj->*F)(property);
+#endif
         }
     };
 
-    template <class T, void (T::*F)(Local<Value>)> 
+    template <class T, _NAN_SETTER_RETURN_TYPE (T::*F)(Local<String>, Local<Value>, _NAN_SETTER_ARGS_TYPE)> 
     struct SetterWrapper {
         static NAN_SETTER(Fun) {
             NanScope();
 
-            auto holder = info.Holder();
+            auto holder = args.Holder();
             if (!T::Constructor()->HasInstance(holder))
                 // I don't actually know what happens if one throws here
                 ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
             else
-                (ObjectWrap::Unwrap<T>(holder)->*F)(value);
+#ifdef NODE_12
+                return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value, args);
+#else
+                return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value);
+#endif
         }
     };
 
@@ -228,7 +236,8 @@ namespace Eos {
 #define EOS_SET_GETTER(target, name, type, method) target->InstanceTemplate()->SetAccessor(NanSymbol(name), &::Eos::GetterWrapper<type, &type::method>::Fun)
 #define EOS_SET_ACCESSOR(target, name, type, getter, setter) target->InstanceTemplate()->SetAccessor(NanSymbol(name), &::Eos::GetterWrapper<type, &type::getter>::Fun, &::Eos::SetterWrapper<type, &type::setter>::Fun)
 
-#define EOS_OPERATION_CONSTRUCTOR(method, owner_type) _NAN_METHOD_RETURN_TYPE method(owner_type* owner, _NAN_METHOD_ARGS_TYPE args)
+#define EOS_OPERATION_CONSTRUCTOR(method, owner_type) Handle<Value> method(owner_type* owner, _NAN_METHOD_ARGS_TYPE args)
+#define EOS_OPERATION_CONSTRUCTOR_RETURN() return NanUndefined()
 
 #ifdef min
 #undef min

@@ -7,32 +7,34 @@ using namespace Buffers;
 
 namespace Eos {
     struct PutDataOperation : Operation<Statement, PutDataOperation> {
-        PutDataOperation::PutDataOperation(Parameter* param, Persistent<Object> bufferObject)
+        PutDataOperation::PutDataOperation(Parameter* param, Handle<Object> bufferObject)
             : parameter_(param)
-            , bufferObject_(bufferObject)
         {
             EOS_DEBUG_METHOD();
+
+            NanAssignPersistent(bufferObject_, bufferObject);
         }
 
         static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             if (!Parameter::Constructor()->HasInstance(args[1]))
-                return NanThrowTypeError("The first parameter should be a Parameter");
+                return NanTypeError("The first parameter should be a Parameter");
 
             auto param = Parameter::Unwrap(args[1].As<Object>());
 
             if (param->Indicator() != SQL_NULL_DATA && !param->Buffer())
-                return NanThrowError("No parameter data supplied (not even null)");
+                return NanError("No parameter data supplied (not even null)");
 
             param->Ref();
 
-            (new PutDataOperation(param, Persistent<Object>::New(param->BufferObject())))
+            (new PutDataOperation(param, param->BufferObject()))
                 ->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         void CallbackOverride(SQLRETURN ret) {

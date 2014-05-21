@@ -14,13 +14,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             if (!args[1]->IsString())
-                return NanThrowTypeError("Statement SQL should be a string");
+                return NanTypeError("Statement SQL should be a string");
 
             (new ExecDirectOperation(args[1]))->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         static const char* Name() { return "ExecDirectOperation"; }
@@ -62,7 +63,7 @@ NAN_METHOD(Statement::ExecDirect) {
     if (args.Length() < 2)
         return NanThrowError("Statement::ExecDirect() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle(), args[0], args[1] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
     return Begin<ExecDirectOperation>(argv);
 }
 

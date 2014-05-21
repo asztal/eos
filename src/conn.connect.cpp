@@ -30,7 +30,7 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             wchar_t* str[3] = { nullptr, nullptr, nullptr };
             SQLLEN len[3] = { 0, 0, 0 };
@@ -44,7 +44,7 @@ namespace Eos {
                if (args[i+1]->IsString())
                    len[i] = 1;
                else 
-                   return NanThrowTypeError("Expected a string");
+                   return NanTypeError("Expected a string");
             }
 
             bool oom = false;
@@ -65,15 +65,15 @@ namespace Eos {
                 delete[] str[0];
                 delete[] str[1];
                 delete[] str[2];
-                return NanThrowError("Out of memory");
+                return NanError("Out of memory");
             }
 
             (new ConnectOperation(
                 str[0], len[0], 
                 str[1], len[1], 
-                str[2], len[2]))->Wrap(args.Holder());;
+                str[2], len[2]))->Wrap(args.Holder());
 
-            NanReturnValue(args.Holder());
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         static const char* Name() { return "ConnectOperation"; }
@@ -102,13 +102,13 @@ NAN_METHOD(Connection::Connect) {
         return NanThrowError("Connection::Connect() requires 2 arguments");
 
     if (args.Length() == 2) {
-        Handle<Value> argv[] = { handle(), args[0], args[1] };
+        Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
         return Begin<ConnectOperation>(argv);
     } else if (args.Length() == 3) {
-        Handle<Value> argv[] = { handle(), args[0], args[1], args[2] };
+        Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1], args[2] };
         return Begin<ConnectOperation>(argv);
     } else {
-        Handle<Value> argv[] = { handle(), args[0], args[1], args[2], args[3] };
+        Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1], args[2], args[3] };
         return Begin<ConnectOperation>(argv);
     }
 }

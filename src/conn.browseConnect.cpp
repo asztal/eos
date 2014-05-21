@@ -15,13 +15,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return NanThrowError("Too few arguments");
+                return NanError("Too few arguments");
 
             if (!args[1]->IsString())
-                return NanThrowTypeError("Connection string should be a string");
+                return NanTypeError("Connection string should be a string");
 
             (new BrowseConnectOperation(args[1]))->Wrap(args.Holder());
-            NanReturnValue(args.Holder());
+
+            EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
         static const char* Name() { return "BrowseConnectOperation"; }
@@ -69,7 +70,7 @@ NAN_METHOD(Connection::BrowseConnect) {
     if (args.Length() < 2)
         return NanThrowError("Connection::BrowseConnect() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle(), args[0], args[1] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1] };
     return Begin<BrowseConnectOperation>(argv);
 }
 
