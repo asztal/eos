@@ -11,14 +11,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 1)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             (new ParamDataOperation())->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -30,14 +30,14 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                Undefined(),
-                Boolean::New(ret == SQL_NEED_DATA),
-                Boolean::New(ret == SQL_PARAM_DATA_AVAILABLE)
+                NanUndefined(),
+                NanUndefined(),
+                NanNew<Boolean>(ret == SQL_NEED_DATA),
+                NanNew<Boolean>(ret == SQL_PARAM_DATA_AVAILABLE)
             };
 
             if ((ret == SQL_PARAM_DATA_AVAILABLE || ret == SQL_NEED_DATA) && parameter_)
-                argv[1] = reinterpret_cast<Parameter*>(parameter_)->handle_;
+                argv[1] = NanObjectWrapHandle(reinterpret_cast<Parameter*>(parameter_));
             
             Callback(argv);
         }
@@ -56,13 +56,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::ParamData(const Arguments& args) {
+NAN_METHOD(Statement::ParamData) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Statement::ParamData() requires a callback");
+        return NanThrowError("Statement::ParamData() requires a callback");
 
-    Handle<Value> argv[] = { handle_, args[0] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0] };
     return Begin<ParamDataOperation>(argv);
 }
 

@@ -10,17 +10,17 @@ namespace Eos {
             EOS_DEBUG_METHOD_FMT(L"execDirect: %ls\n", *sql_);
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 3)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             if (!args[1]->IsString())
-                return ThrowTypeError("Statement SQL should be a string");
+                return NanThrowTypeError("Statement SQL should be a string");
 
             (new ExecDirectOperation(args[1]))->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "ExecDirectOperation"; }
@@ -43,9 +43,9 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                ret == SQL_NEED_DATA ? True() : False(),
-                ret == SQL_PARAM_DATA_AVAILABLE ? True() : False(),
+                NanUndefined(),
+                ret == SQL_NEED_DATA ? NanTrue() : NanFalse(),
+                ret == SQL_PARAM_DATA_AVAILABLE ? NanTrue() : NanFalse(),
             };
             
             Callback(argv);
@@ -56,13 +56,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::ExecDirect(const Arguments& args) {
+NAN_METHOD(Statement::ExecDirect) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 2)
-        return ThrowError("Statement::ExecDirect() requires 2 arguments");
+        return NanThrowError("Statement::ExecDirect() requires 2 arguments");
 
-    Handle<Value> argv[] = { handle_, args[0], args[1] };
+    Handle<Value> argv[] = { handle(), args[0], args[1] };
     return Begin<ExecDirectOperation>(argv);
 }
 

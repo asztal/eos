@@ -8,14 +8,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 1)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             (new NumResultColsOperation())->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         void CallbackOverride(SQLRETURN ret) {
@@ -27,8 +27,8 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                Integer::New(columnCount_)
+                NanUndefined(),
+                NanNew<Integer>(columnCount_)
             };
             
             Callback(argv);
@@ -50,13 +50,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::NumResultCols(const Arguments& args) {
+NAN_METHOD(Statement::NumResultCols) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Statement::NumResultCols() requires a callback");
+        return NanThrowError("Statement::NumResultCols() requires a callback");
 
-    Handle<Value> argv[] = { handle_, args[0] };
+    Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0] };
     return Begin<NumResultColsOperation>(argv);
 }
 

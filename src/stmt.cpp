@@ -121,7 +121,7 @@ NAN_METHOD(Statement::BindParameter) {
     if (auto j = args[4]->Int32Value() > SHRT_MAX)
         return NanThrowRangeError("Decimal digits is too high");
 
-    Handle<Value> jsValue = Undefined();
+    Handle<Value> jsValue = NanUndefined();
     Handle<Object> bufferObject;
 
     if (args.Length() >= 6) 

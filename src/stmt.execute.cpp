@@ -8,14 +8,14 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        static Handle<Value> New(Statement* owner, const Arguments& args) {
+        static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
             if (args.Length() < 2)
-                return ThrowError("Too few arguments");
+                return NanThrowError("Too few arguments");
 
             (new ExecuteOperation())->Wrap(args.Holder());
-            return args.Holder();
+            NanReturnValue(args.Holder());
         }
 
         static const char* Name() { return "ExecuteOperation"; }
@@ -36,9 +36,9 @@ namespace Eos {
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[] = { 
-                Undefined(),
-                ret == SQL_NEED_DATA ? True() : False(),
-                ret == SQL_PARAM_DATA_AVAILABLE ? True() : False()
+                NanUndefined(),
+                ret == SQL_NEED_DATA ? NanTrue() : NanFalse(),
+                ret == SQL_PARAM_DATA_AVAILABLE ? NanTrue() : NanFalse()
             };
             
             Callback(argv);
@@ -46,13 +46,13 @@ namespace Eos {
     };
 }
 
-Handle<Value> Statement::Execute(const Arguments& args) {
+NAN_METHOD(Statement::Execute) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 1)
-        return ThrowError("Statement::Execute() requires a callback");
-
-    Handle<Value> argv[] = { handle_, args[0] };
+        return NanThrowError("Statement::Execute() requires a callback");
+    
+    Handle<Value> argv[] = { handle(), args[0] };
     return Begin<ExecuteOperation>(argv);
 }
 
