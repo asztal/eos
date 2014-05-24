@@ -91,7 +91,7 @@ namespace Eos {
 
     protected:
         wchar_t *serverName_, *userName_, *password_;
-        SQLLEN serverNameLength_, userNameLength_, passwordLength_;
+        SQLSMALLINT serverNameLength_, userNameLength_, passwordLength_;
     };
 }
 
