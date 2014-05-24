@@ -19,7 +19,7 @@ namespace Eos {
         NAN_METHOD(Free);
         SQLHANDLE GetHandle() const { return sqlHandle_; }
         SQLSMALLINT GetHandleType() const { return handleType_; }
-        Local<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }
+        Handle<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }
         IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(NanNew(operation_)); }
         
         void Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Ref(); }
@@ -85,8 +85,10 @@ namespace Eos {
                 EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
                 if (hWait_ = Eos::Wait(this))
                     NanAssignPersistent(operation_, op);
-                else 
-                    return NanThrowError(OdbcError("Unable to begin asynchronous operation"));
+                else { 
+                    NanThrowError(OdbcError("Unable to begin asynchronous operation"));
+                    return;
+                }
             } else {
                 EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
             }

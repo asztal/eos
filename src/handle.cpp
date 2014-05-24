@@ -18,7 +18,7 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle EOS_ASYNC_ON
 }
 
 EosHandle::~EosHandle() {
-    EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, handle());
+    EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, sqlHandle_);
     
     assert(operation_.IsEmpty() && "The handle should not be destructed while an operation is in progress");
 
@@ -109,7 +109,8 @@ SQLRETURN EosHandle::FreeHandle() {
 
     bool executing = !operation_.IsEmpty();
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
-    executing ||= (hWait != nullptr);
+    if (hWait_)
+        executing = true;
 #endif
 
     if (executing)

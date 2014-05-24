@@ -96,7 +96,7 @@ NAN_METHOD(Connection::NewStatement) {
     EOS_DEBUG_METHOD();
 
     Handle<Value> argv[1] = { NanObjectWrapHandle(this) };
-    NanReturnValue(Statement::Constructor()->GetFunction()->NewInstance(1, argv));
+    EosMethodReturnValue(Statement::Constructor()->GetFunction()->NewInstance(1, argv));
 }
 
 NAN_METHOD(Connection::NativeSql) {
@@ -147,9 +147,9 @@ NAN_METHOD(Connection::NativeSql) {
 
         auto result = StringFromTChar(buffer, newCharsAvailable);
         delete[] buffer;
-        NanReturnValue(result);
+        EosMethodReturnValue(result);
     } else {
-        NanReturnValue(StringFromTChar(buffer, charsAvailable));
+        EosMethodReturnValue(StringFromTChar(buffer, charsAvailable));
     }
 }
 

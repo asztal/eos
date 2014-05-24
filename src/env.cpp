@@ -58,8 +58,8 @@ NAN_METHOD(Eos::Environment::NewConnection) {
     if (!IsValid())
         return ThrowClosed();
 
-    Handle<Value> argv[1] = { handle() };
-    NanReturnValue(Connection::Constructor()->GetFunction()->NewInstance(1, argv));
+    Handle<Value> argv[1] = { NanObjectWrapHandle(this) };
+    EosMethodReturnValue(Connection::Constructor()->GetFunction()->NewInstance(1, argv));
 }
 
 NAN_METHOD(Eos::Environment::DataSources) {
@@ -93,7 +93,7 @@ NAN_METHOD(Eos::Environment::DataSources) {
             description, sizeof(description) / sizeof(wchar_t), &descriptionLength);
     
         if (ret == SQL_NO_DATA)
-            NanReturnValue(results);
+            EosMethodReturnValue(results);
 
         if (ret == SQL_ERROR)
             return NanThrowError(GetLastError());
@@ -129,7 +129,7 @@ NAN_METHOD(Eos::Environment::Drivers) {
             driverAttributes, sizeof(driverAttributes) / sizeof(wchar_t), &driverAttributesLength);
     
         if (ret == SQL_NO_DATA)
-            NanReturnValue(results);
+            EosMethodReturnValue(results);
 
         if (ret == SQL_ERROR)
             return NanThrowError(GetLastError());
