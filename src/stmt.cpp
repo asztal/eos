@@ -53,19 +53,44 @@ NAN_METHOD(Statement::New) {
     if (!SQL_SUCCEEDED(ret))
         return NanThrowError(conn->GetLastError());
 
-    auto hEvent = CreateEventW(nullptr, false, false, nullptr);
-    if (!hEvent) {
-        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-        return NanThrowError("Unable to create wait handle");
-    }
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+    HANDLE hEvent = nullptr;
 
-    (new Statement(hStmt, conn, hEvent))->Wrap(args.Holder());
+    ret = SQLSetStmtAttrW(
+        hStmt,
+        SQL_ATTR_ASYNC_ENABLE,
+        (SQLPOINTER)SQL_ASYNC_ENABLE_ON,
+        SQL_IS_INTEGER);
+
+    if (SQL_SUCCEEDED(ret)) {
+        hEvent = CreateEventW(nullptr, false, false, nullptr);
+        if (!hEvent) {
+            SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+            return NanThrowError("Unable to create wait handle");
+        }
+
+        ret = SQLSetStmtAttrW(
+            hStmt,
+            SQL_ATTR_ASYNC_STMT_EVENT,
+            hEvent,
+            SQL_IS_POINTER);
+
+        if (!SQL_SUCCEEDED(ret)) {
+            auto error = Eos::GetLastError(SQL_HANDLE_STMT, hStmt);
+            SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+            CloseHandle(hEvent);
+            return NanThrowError(error);
+        }
+    }
+#endif
+
+    (new Statement(hStmt, conn EOS_ASYNC_ONLY_ARG(hEvent)))->Wrap(args.Holder());
     
     NanReturnValue(args.Holder());
 }
 
-Statement::Statement(SQLHSTMT hStmt, Connection* conn, HANDLE hEvent) 
-    : EosHandle(SQL_HANDLE_STMT, hStmt, hEvent)
+Statement::Statement(SQLHSTMT hStmt, Connection* conn EOS_ASYNC_ONLY_ARG(HANDLE hEvent)) 
+    : EosHandle(SQL_HANDLE_STMT, hStmt EOS_ASYNC_ONLY_ARG(hEvent))
     , connection_(conn)
 {
     EOS_DEBUG_METHOD();

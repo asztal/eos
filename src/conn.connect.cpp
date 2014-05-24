@@ -5,9 +5,9 @@ using namespace Eos;
 namespace Eos {
     struct ConnectOperation : Operation<Connection, ConnectOperation> {
         ConnectOperation(
-            wchar_t* serverName, SQLLEN serverNameLength,
-            wchar_t* userName, SQLLEN userNameLength,
-            wchar_t* password, SQLLEN passwordLength)
+            wchar_t* serverName, SQLSMALLINT serverNameLength,
+            wchar_t* userName, SQLSMALLINT userNameLength,
+            wchar_t* password, SQLSMALLINT passwordLength)
             : serverName_(serverName), serverNameLength_(serverNameLength)
             , userName_(userName), userNameLength_(userNameLength)
             , password_(password), passwordLength_(passwordLength)
@@ -33,7 +33,7 @@ namespace Eos {
                 return NanError("Too few arguments");
 
             wchar_t* str[3] = { nullptr, nullptr, nullptr };
-            SQLLEN len[3] = { 0, 0, 0 };
+            SQLSMALLINT len[3] = { 0, 0, 0 };
 
             for (int i = 0; i < 3; i++) {
                if (i + 1 >= args.Length() - 1
@@ -88,6 +88,8 @@ namespace Eos {
                 userName_, userNameLength_,
                 password_, passwordLength_);
         }
+
+        // TODO When do these get deleted?
 
     protected:
         wchar_t *serverName_, *userName_, *password_;

@@ -8,7 +8,7 @@ namespace Eos {
     struct Connection : EosHandle {
         static void Init(Handle<Object> exports);
 
-        Connection(Environment* environment, SQLHDBC hDbc, HANDLE hEvent); 
+        Connection(Environment* environment, SQLHDBC hDbc EOS_ASYNC_ONLY_ARG(HANDLE hEvent)); 
         ~Connection();
 
         static const int HandleType = SQL_HANDLE_DBC;
@@ -26,6 +26,7 @@ namespace Eos {
     public:
         // Non-JS methods
         static Handle<FunctionTemplate> Constructor() { return NanNew(constructor_); }
+        void DisableAsynchronousNotifications();
 
     private:
         Eos::Environment* environment_;

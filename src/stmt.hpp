@@ -10,7 +10,7 @@ namespace Eos {
     struct Statement: EosHandle {
         static void Init(Handle<Object> exports);
 
-        Statement(SQLHSTMT hStmt, Connection* connection, HANDLE hEvent);
+        Statement(SQLHSTMT hStmt, Connection* connection EOS_ASYNC_ONLY_ARG(HANDLE hEvent));
         ~Statement();
 
         static const int HandleType = SQL_HANDLE_STMT;
