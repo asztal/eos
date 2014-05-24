@@ -17,7 +17,7 @@ void Eos::Environment::Init(Handle<Object> exports) {
 }
 
 Eos::Environment::Environment(SQLHENV hEnv) 
-    : EosHandle(SQL_HANDLE_ENV, hEnv, nullptr) 
+    : EosHandle(SQL_HANDLE_ENV, hEnv EOS_ASYNC_ONLY_ARG(nullptr)) 
 {
     EOS_DEBUG_METHOD();
 }

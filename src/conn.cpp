@@ -5,7 +5,7 @@ using namespace Eos;
 
 Persistent<FunctionTemplate> Connection::constructor_;
 
-void Connection::Init(Handle<Object> exports)  {
+void Connection::Init(Handle<Object> exports) {
     EOS_DEBUG_METHOD();
 
     EosHandle::Init("Connection", constructor_, New);
@@ -19,9 +19,9 @@ void Connection::Init(Handle<Object> exports)  {
     EOS_SET_METHOD(Constructor(), "disconnect", Connection, Disconnect, sig0);
 }
 
-Connection::Connection(Eos::Environment* environment, SQLHDBC hDbc, HANDLE hEvent)
+Connection::Connection(Eos::Environment* environment, SQLHDBC hDbc EOS_ASYNC_ONLY_ARG(HANDLE hEvent))
     : environment_(environment)
-    , EosHandle(SQL_HANDLE_DBC, hDbc, hEvent)
+    , EosHandle(SQL_HANDLE_DBC, hDbc EOS_ASYNC_ONLY_ARG(hEvent))
 {
     EOS_DEBUG_METHOD();
 }
@@ -53,6 +53,10 @@ NAN_METHOD(Connection::New) {
     auto ret = SQLAllocHandle(SQL_HANDLE_DBC, env->GetHandle(), &hDbc);
     if (!SQL_SUCCEEDED(ret))
         return NanThrowError(env->GetLastError());
+    
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+    // Attempt to enable asynchronous notifications
+    HANDLE hEvent = nullptr;
 
     ret = SQLSetConnectAttrW(
         hDbc, 
@@ -60,32 +64,30 @@ NAN_METHOD(Connection::New) {
         (SQLPOINTER)SQL_ASYNC_DBC_ENABLE_ON, 
         SQL_IS_INTEGER);
 
-    if (!SQL_SUCCEEDED(ret)) {
-        auto error = Eos::GetLastError(SQL_HANDLE_DBC, hDbc);
-        SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-        return NanThrowError(error);
+    // If asynchronous notifications are supported
+    if (SQL_SUCCEEDED(ret)) {
+        hEvent = CreateEventW(nullptr, false, false, nullptr);
+        if (!hEvent) {
+            SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+            return NanThrowError("Unable to create wait handle");
+        }
+
+        ret = SQLSetConnectAttrW(
+            hDbc, 
+            SQL_ATTR_ASYNC_DBC_EVENT, 
+            hEvent, 
+            SQL_IS_POINTER);
+
+        if (!SQL_SUCCEEDED(ret)) {
+            auto error = Eos::GetLastError(SQL_HANDLE_DBC, hDbc);
+            SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+            CloseHandle(hEvent);
+            return NanThrowError(error);
+        }
     }
+#endif
 
-    auto hEvent = CreateEventW(nullptr, false, false, nullptr);
-    if (!hEvent) {
-        SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-        return NanThrowError("Unable to create wait handle");
-    }
-
-    ret = SQLSetConnectAttrW(
-        hDbc, 
-        SQL_ATTR_ASYNC_DBC_EVENT, 
-        hEvent, 
-        SQL_IS_POINTER);
-
-    if (!SQL_SUCCEEDED(ret)) {
-        auto error = Eos::GetLastError(SQL_HANDLE_DBC, hDbc);
-        SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-        CloseHandle(hEvent);
-        return NanThrowError(error);
-    }
-
-    (new Connection(env, hDbc, hEvent))->Wrap(args.Holder());
+    (new Connection(env, hDbc EOS_ASYNC_ONLY_ARG(hEvent)))->Wrap(args.Holder());
 
     NanReturnValue(args.Holder());
 }
@@ -93,7 +95,7 @@ NAN_METHOD(Connection::New) {
 NAN_METHOD(Connection::NewStatement) {
     EOS_DEBUG_METHOD();
 
-    Handle<Value> argv[1] = { handle() };
+    Handle<Value> argv[1] = { NanObjectWrapHandle(this) };
     NanReturnValue(Statement::Constructor()->GetFunction()->NewInstance(1, argv));
 }
 
@@ -150,5 +152,29 @@ NAN_METHOD(Connection::NativeSql) {
         NanReturnValue(StringFromTChar(buffer, charsAvailable));
     }
 }
+
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+void Connection::DisableAsynchronousNotifications() {
+    EOS_DEBUG_METHOD();
+
+    auto ret = SQLSetConnectAttrW(
+        GetHandle(),
+        SQL_ATTR_ASYNC_DBC_EVENT,
+        nullptr,
+        SQL_IS_POINTER);
+
+    if (!SQL_SUCCEEDED(ret))
+        EOS_DEBUG(L"Failed to unset the connection's event handle");
+
+    ret = SQLSetConnectAttrW(
+        GetHandle(),
+        SQL_ATTR_ASYNC_DBC_FUNCTIONS_ENABLE,
+        (SQLPOINTER)SQL_ASYNC_DBC_ENABLE_OFF,
+        SQL_IS_INTEGER);
+
+    if (!SQL_SUCCEEDED(ret))
+        EOS_DEBUG(L"Failed to turn off asynchronous notifications");
+}
+#endif
 
 namespace { ClassInitializer<Connection> ci; }

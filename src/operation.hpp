@@ -2,6 +2,8 @@
 
 #include "eos.hpp"
 
+#include <uv.h>
+
 namespace Eos {
     struct IOperation : ObjectWrap {
         IOperation() {
@@ -18,25 +20,6 @@ namespace Eos {
 
         virtual ~IOperation() {
             EOS_DEBUG_METHOD();
-        }
-
-        // Returns true if the operation completed synchronously.
-        bool Begin(bool isComplete = false) {
-            EOS_DEBUG_METHOD();
-            
-            OnBegin();
-
-            auto ret = Call();
-
-            EOS_DEBUG(L"Immediate Result: %hi\n", ret);
-            
-            if (ret == SQL_STILL_EXECUTING) {
-                assert(!isComplete);
-                return false; // Asynchronous
-            }
-        
-            Callback(ret);
-            return true; // Synchronous
         }
 
         SQLRETURN Call() {
@@ -101,6 +84,7 @@ namespace Eos {
         }
         
         ~Operation() { 
+            ownerPtr_ = nullptr;
             assert(completed_);
             EOS_DEBUG_METHOD();
         }
@@ -146,6 +130,7 @@ namespace Eos {
                 return NanThrowError(error);
 
             auto op = ObjectWrap::Unwrap<TOp>(args.Holder());
+            op->ownerPtr_ = owner;
             NanAssignPersistent(op->owner_, NanObjectWrapHandle(owner));
             NanAssignPersistent(op->callback_, args[args.Length() - 1].As<Function>());
 
@@ -156,8 +141,58 @@ namespace Eos {
             return NanNew(constructor_);
         }
 
-        TOwner* Owner() { return ObjectWrap::Unwrap<TOwner>(NanNew(owner_)); }
+        TOwner* Owner() { return ownerPtr_; }
 
+        // Returns true if the operation completed synchronously.
+        bool BeginAsync(bool isComplete = false) {
+            EOS_DEBUG_METHOD();
+            
+            OnBegin();
+
+            auto ret = Call();
+
+            // As explained by the MSDN documentation, enabling asynchronous
+            // notifications on a connection handle always succeeds if it is 
+            // not connected, because it doesn't know which driver it will be
+            // using. If the driver does not support asynchronous operations, 
+            // it will return SQL_ERROR with SQLSTATE S1118.
+            if (ret == SQL_ERROR) {
+                wchar_t state[6];
+
+                // The documentation doesn't explicitly say that you can 
+                // pass nullptr instead of pointers to these.
+                SQLSMALLINT messageLength;
+                SQLINTEGER nativeError;
+
+                auto diagRet = SQLGetDiagRecW(
+                    Owner()->GetHandleType(), 
+                    Owner()->GetHandle(),
+                    1,
+                    state,
+                    &nativeError,
+                    nullptr, 0, &messageLength);
+
+                if (diagRet == SQL_SUCCESS && wcscmp(state, L"S1118") == 0) {
+                    Owner()->DisableAsynchronousNotifications();
+                    
+                    // Now try again. If it fails again for the same reason,
+                    // pass the error back to JS.
+                    ret = Call();
+                }
+            }
+
+            EOS_DEBUG(L"Immediate Result: %hi\n", ret);
+            
+            if (ret == SQL_STILL_EXECUTING) {
+                assert(!isComplete);
+                return false; // Asynchronous
+            }
+        
+            Callback(ret);
+            return true; // Synchronous
+        }
+
+        // Completed using asynchronous notifications
         void OnCompleted() {
             EOS_DEBUG_METHOD_FMT(L"owner: 0x%p, operation: 0x%p", Owner(), this);
             assert(!completed_);
@@ -175,10 +210,42 @@ namespace Eos {
             this->Unref();
         }
 
+        void RunOnThreadPool() {
+            EOS_DEBUG_METHOD();
+
+            OnBegin();
+
+            new(&req_) uv_work_t;
+            req_.data = this;
+
+            uv_queue_work(
+                uv_default_loop(),
+                &req_,
+                &UVWorkCallback,
+                &UVCompletedCallback);
+        }
+
     protected:
         void CallbackErrorOverride(SQLRETURN ret) {
             Handle<Value> argv[] = { Owner()->GetLastError() };
             GetCallback()->Call(NanGetCurrentContext()->Global(), 1, argv);
+        }
+
+        static void UVWorkCallback(uv_work_t* req) {
+            auto op = static_cast<Operation<TOwner, TOp>*>(req->data);
+            assert(op && &op->req_ == req);
+
+            op->result_ = op->Call();
+        }
+
+        static void UVCompletedCallback(uv_work_t* req, int status) {
+            auto op = static_cast<Operation<TOwner, TOp>*>(req->data);
+            assert(op && &op->req_ == req);
+
+            op->completed_ = true;
+
+            NanScope();
+            op->Callback(op->result_);
         }
 
     private:
@@ -188,7 +255,12 @@ namespace Eos {
             this->Ref();
         }
 
+        // For thread pool tasks
+        uv_work_t req_;
+        SQLRETURN result_;
+
         bool completed_;
+        TOwner* ownerPtr_;
         Persistent<Object> owner_;
         static Persistent<FunctionTemplate> constructor_;
     };
