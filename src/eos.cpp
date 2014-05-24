@@ -226,7 +226,10 @@ namespace Eos {
         void NTAPI WaitCallback(PVOID data, BOOLEAN timeout) {
             EOS_DEBUG_METHOD();
 
-            assert(!inCallback);
+            // Another bogus assert - this wait callback
+            // runs on a separate thread, so querying the 
+            // state of the main thread makes no sense
+            // assert(!inCallback);
 
             if (timeout)
                 return;
@@ -267,7 +270,8 @@ namespace Eos {
     HANDLE Wait(INotify* notify) {
         EOS_DEBUG_METHOD();
 
-        assert(!Async::inCallback);
+        // Bogus assert - actually, this case is quite expected.
+        // assert(!Async::inCallback);
 
         Async::InitialiseWaiter();
 
@@ -284,7 +288,7 @@ namespace Eos {
     void PrintStackTrace() {
         PrintStackTrace(
             IF_NODE_12( StackTrace::CurrentStackTrace(nan_isolate, 10)
-                      , NanNew<StackTrace>(10)));
+                      , StackTrace::CurrentStackTrace(10)));
     }
 
     void PrintStackTrace(Handle<StackTrace> stackTrace) {
@@ -387,7 +391,7 @@ namespace Eos {
     }
 
     // Assumes a valid handle scope exists
-    Local<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle) {
+    Handle<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle) {
         EOS_DEBUG_METHOD();
 
         assert(handleType == SQL_HANDLE_ENV || handleType == SQL_HANDLE_DBC || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_STMT || handleType == SQL_HANDLE_DESC);
@@ -556,8 +560,10 @@ namespace Eos {
 
     void JSBuffer::Init(Handle<Object>) {
         auto val = NanGetCurrentContext()->Global()->Get(NanSymbol("Buffer"));
-        if (!val->IsFunction())
-            return NanThrowError("The global Buffer object is not a function. Please don't duck punch the Buffer object when using Eos.");
+        if (!val->IsFunction()) {
+            NanThrowError("The global Buffer object is not a function. Please don't duck punch the Buffer object when using Eos.");
+            return;
+        }
 
         NanAssignPersistent(constructor_, val.As<Function>());
     }
@@ -577,9 +583,9 @@ namespace Eos {
     }
 
     Handle<Object> JSBuffer::New(size_t length) {
-        assert(length <= UINT32_MAX);
+        assert(length <= INT32_MAX);
 
-        Handle<Value> argv[] = { NanNew<Uint32>(length) };
+        Handle<Value> argv[] = { NanNew<Integer>(length) };
         return Constructor()->NewInstance(1, argv);
     }
 

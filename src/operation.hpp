@@ -13,7 +13,7 @@ namespace Eos {
             NanAssignPersistent(stackTrace_, 
                 IF_NODE_12
                     ( StackTrace::CurrentStackTrace(nan_isolate, 10)
-                    , NanNew<StackTrace>(10))
+                    , StackTrace::CurrentStackTrace(10))
                 );
 #endif
         }

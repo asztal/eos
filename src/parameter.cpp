@@ -45,11 +45,11 @@ Parameter::Parameter
 }
 
 NAN_GETTER(Parameter::GetBuffer) const {
-    NanReturnValue(NanNew(bufferObject_));
+    EosMethodReturnValue(NanNew(bufferObject_));
 }
 
 NAN_GETTER(Parameter::GetBufferLength) const {
-    NanReturnValue(NanNew<Integer>(length_));
+    EosMethodReturnValue(NanNew<Integer>(length_));
 }
 
 NAN_GETTER(Parameter::GetBytesInBuffer) const {
@@ -59,15 +59,15 @@ NAN_GETTER(Parameter::GetBytesInBuffer) const {
     if (indicator_ == SQL_NULL_DATA)
         NanReturnNull();
 
-    NanReturnValue(NanNew<Integer>(BytesInBuffer()));
+    EosMethodReturnValue(NanNew<Integer>(BytesInBuffer()));
 }
 
 NAN_GETTER(Parameter::GetIndex) const {
-    NanReturnValue(NanNew<Integer>(parameterNumber_));
+    EosMethodReturnValue(NanNew<Integer>(parameterNumber_));
 }
 
 NAN_GETTER(Parameter::GetKind) const {
-    NanReturnValue(NanNew<Integer>(inOutType_));
+    EosMethodReturnValue(NanNew<Integer>(inOutType_));
 }
 
 SQLLEN Parameter::BytesInBuffer() const {
@@ -181,11 +181,11 @@ NAN_GETTER(Parameter::GetValue) const {
         assert(indicator_ >= 0 || indicator_ == SQL_NO_TOTAL);
 
         if (indicator_ >= length_ || indicator_ == SQL_NO_TOTAL)
-            NanReturnValue(NanNew(bufferObject_));
-        NanReturnValue(JSBuffer::Slice(NanNew(bufferObject_), 0, indicator_));
+            EosMethodReturnValue(NanNew(bufferObject_));
+        EosMethodReturnValue(JSBuffer::Slice(NanNew(bufferObject_), 0, indicator_));
     }
 
-    NanReturnValue(ConvertToJS(buffer_, indicator_, length_, cType_));
+    EosMethodReturnValue(ConvertToJS(buffer_, indicator_, length_, cType_));
 }
 
 NAN_SETTER(Parameter::SetValue) {

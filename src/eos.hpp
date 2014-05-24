@@ -123,7 +123,7 @@ namespace Eos {
     // Use SQLGetDiagRecW to return an OdbcError representing the last error which happened
     // for the given handle. The first error will be returned, but if there are multiple
     // errors they will be accessible via the OdbcError.prototype.errors property.
-    Local<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle);
+    Handle<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle);
 
     // Do type hackery to cast from const SQLWCHAR* to const uint16_t* to please V8's 
     // String::New function.
@@ -146,11 +146,7 @@ namespace Eos {
 
             T* obj = ObjectWrap::Unwrap<T>(args.Holder());
 
-#ifdef NODE_12
-            (obj->*F)(args);
-#else
             return (obj->*F)(args);
-#endif
         }
     };
 
@@ -165,11 +161,7 @@ namespace Eos {
 
             T* obj = ObjectWrap::Unwrap<T>(holder);
 
-#ifdef NODE_12
             return (obj->*F)(property, args);
-#else
-            return (obj->*F)(property);
-#endif
         }
     };
 
@@ -183,11 +175,8 @@ namespace Eos {
                 // I don't actually know what happens if one throws here
                 ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
             else
-#ifdef NODE_12
+
                 return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value, args);
-#else
-                return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value);
-#endif
         }
     };
 
@@ -238,6 +227,13 @@ namespace Eos {
 
 #define EOS_OPERATION_CONSTRUCTOR(method, owner_type) Handle<Value> method(owner_type* owner, _NAN_METHOD_ARGS_TYPE args)
 #define EOS_OPERATION_CONSTRUCTOR_RETURN() return NanUndefined()
+
+#if defined(NODE_12)
+#define EosMethodReturnValue(x) NanReturnValue(x)
+#else
+// No need for scope.Close
+#define EosMethodReturnValue(x) return x
+#endif
 
 #ifdef min
 #undef min

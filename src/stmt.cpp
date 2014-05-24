@@ -196,7 +196,7 @@ NAN_METHOD(Statement::BindParameter) {
   
     Statement::AddBoundParameter(param);
 
-    NanReturnValue(jsParam);
+    EosMethodReturnValue(jsParam);
 }
 
 void Statement::AddBoundParameter(Parameter* param) {
@@ -205,7 +205,7 @@ void Statement::AddBoundParameter(Parameter* param) {
     if (bindings_.IsEmpty())
         NanAssignPersistent(bindings_, NanNew<Array>());
 
-    NanNew(bindings_)->Set(param->ParameterNumber(), param->handle());
+    NanNew(bindings_)->Set(param->ParameterNumber(), NanObjectWrapHandle(param));
 }
 
 NAN_METHOD(Statement::SetParameterName) {
