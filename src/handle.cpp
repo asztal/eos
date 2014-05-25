@@ -55,7 +55,7 @@ void EosHandle::Init ( const char* className
 void EosHandle::Notify() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
     
-    if (!operation_.IsEmpty()) {
+    if (operation_.IsEmpty()) {
 #if defined(DEBUG)
         EOS_DEBUG(L"Notify() called after FreeHandle()!\n");
 

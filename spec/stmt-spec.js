@@ -310,7 +310,7 @@ describe("A prepared statement", function () {
         stmt.execute(done);
     });
 
-    it("should allow executing twice", function (done) {
+    xit("should allow executing twice", function (done) {
         stmt.execute(function (err) {
             if (err)
                 return done(err);
@@ -341,11 +341,7 @@ describe("Cancelling statement operations", function () {
         });
     });
 
-    it("should allow executing", function (done) {
-        stmt.execute(done);
-    });
-
-    it("should allow executing, cancelling, then executing", function (done) {
+    it("should cause execute() operation to err with SQLSTATE HY008", function (done) {
         stmt.execute(function (err) {
             if (err && err.state == "HY008")
                 return done();
