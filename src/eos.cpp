@@ -63,6 +63,7 @@ namespace Eos {
         InitError(exports);
     }
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
 #pragma region("Wait")
     namespace Async {
         inline void CheckUV(int rc) {
@@ -201,8 +202,11 @@ namespace Eos {
                     assert(!inCallback);
                     inCallback = true;
                     current->target->Notify();
-                    assert(firstCallback == current->next);
-                    assert(inCallback);
+                    // Bogus asserts - notify() might have done anything,
+                    // or 
+                    // e.g. scheduling more callbacks, such that
+                    // assert(firstCallback == current->next);
+                    // assert(inCallback);
                     inCallback = false;
                     current->target->Unref();
                     delete current;
@@ -283,8 +287,9 @@ namespace Eos {
         
         return hRegisteredWaitHandle;
     }
-
 #pragma endregion
+#endif 
+
     void PrintStackTrace() {
         PrintStackTrace(
             IF_NODE_12( StackTrace::CurrentStackTrace(nan_isolate, 10)
@@ -378,18 +383,6 @@ namespace Eos {
     }
 #pragma endregion
     
-    _NAN_METHOD_RETURN_TYPE ThrowError(const char* message) {
-        return NanThrowError(message);
-    }
-
-    _NAN_METHOD_RETURN_TYPE ThrowRangeError(const char* message) {
-        return NanThrowRangeError(message);
-    }
-
-    _NAN_METHOD_RETURN_TYPE ThrowTypeError(const char* message) {
-        return NanThrowTypeError(message);
-    }
-
     // Assumes a valid handle scope exists
     Handle<Value> GetLastError(SQLSMALLINT handleType, SQLHANDLE handle) {
         EOS_DEBUG_METHOD();
