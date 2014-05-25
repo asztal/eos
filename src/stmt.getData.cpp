@@ -170,7 +170,7 @@ NAN_METHOD(Statement::GetData) {
     EOS_DEBUG_METHOD();
 
     if (args.Length() < 5)
-        return ThrowError("Statement::GetData() requires 4 arguments and a callback");
+        return NanThrowError("Statement::GetData() requires 4 arguments and a callback");
 
     Handle<Value> argv[] = { NanObjectWrapHandle(this), args[0], args[1], args[2], args[3], args[4] };
     return Begin<GetDataOperation>(argv);

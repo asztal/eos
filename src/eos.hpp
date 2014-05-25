@@ -115,10 +115,6 @@ namespace Eos {
 
     // Create an OdbcError with an SQLSTATE but no sub-errors.
     Local<Value> OdbcError(Handle<String> message, Handle<String> state);
-    
-    _NAN_METHOD_RETURN_TYPE ThrowError(const char* message);
-    _NAN_METHOD_RETURN_TYPE ThrowRangeError(const char* message);
-    _NAN_METHOD_RETURN_TYPE ThrowTypeError(const char* message);
 
     // Use SQLGetDiagRecW to return an OdbcError representing the last error which happened
     // for the given handle. The first error will be returned, but if there are multiple
@@ -157,7 +153,7 @@ namespace Eos {
             
             auto holder = args.Holder();
             if (!T::Constructor()->HasInstance(holder))
-                return ThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
+                return NanThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
 
             T* obj = ObjectWrap::Unwrap<T>(holder);
 
@@ -171,12 +167,13 @@ namespace Eos {
             NanScope();
 
             auto holder = args.Holder();
-            if (!T::Constructor()->HasInstance(holder))
+            if (!T::Constructor()->HasInstance(holder)) {
                 // I don't actually know what happens if one throws here
-                ThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
-            else
-
+                NanThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
+                return;
+            } else {
                 return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value, args);
+            }
         }
     };
 
