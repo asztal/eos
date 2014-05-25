@@ -35,6 +35,12 @@ namespace Eos {
 
         virtual void OnCompleted() = 0;
 
+#if defined(DEBUG)
+        Handle<StackTrace> GetStackTrace() const {
+            return NanNew(stackTrace_);
+        }
+#endif
+
     protected:
         virtual SQLRETURN CallOverride() = 0;
 
@@ -242,10 +248,17 @@ namespace Eos {
             auto op = static_cast<Operation<TOwner, TOp>*>(req->data);
             assert(op && &op->req_ == req);
 
-            op->completed_ = true;
-
             NanScope();
-            op->Callback(op->result_);
+
+            op->completed_ = true;
+            
+            TryCatch tc;
+            op->CallbackOverride(op->result_);
+            if (tc.HasCaught())
+                FatalException(tc);
+
+            op->Owner()->Unref();
+            op->Unref();
         }
 
     private:

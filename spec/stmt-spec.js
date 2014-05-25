@@ -306,17 +306,54 @@ describe("A prepared statement", function () {
         });
     });
 
+    xit("should allow executing", function (done) {
+        stmt.execute(done);
+    });
+
+    it("should allow executing twice", function (done) {
+        stmt.execute(function (err) {
+            if (err)
+                return done(err);
+
+            stmt.closeCursor();
+
+            stmt.execute(done);
+        });
+    });
+
+    afterEach(function () {
+        stmt.free();
+        conn.disconnect(conn.free.bind(conn));
+    });
+});
+
+describe("Cancelling statement operations", function () {
+    var conn, stmt;
+
+    beforeEach(function (done) {
+        common.conn(function (err, c) {
+            if (err)
+                return done(err);
+
+            conn = c;
+            stmt = c.newStatement();
+            stmt.prepare("waitfor delay '00:00:03'; select 42 as x", done);
+        });
+    });
+
     it("should allow executing", function (done) {
         stmt.execute(done);
     });
 
     it("should allow executing, cancelling, then executing", function (done) {
         stmt.execute(function (err) {
+            if (err && err.state == "HY008")
+                return done();
             if (err)
                 return done(err);
-            stmt.cancel();
-            stmt.execute(done);
+            return done(new Error("Expected HY008 (operation cancelled)"));
         });
+        stmt.cancel();
     });
 
     afterEach(function () {

@@ -174,6 +174,8 @@ void Connection::DisableAsynchronousNotifications() {
 
     if (!SQL_SUCCEEDED(ret))
         EOS_DEBUG(L"Failed to turn off asynchronous notifications");
+
+    EosHandle::DisableAsynchronousNotifications();
 }
 #endif
 

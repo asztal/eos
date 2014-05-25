@@ -20,6 +20,7 @@ EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle EOS_ASYNC_ON
 EosHandle::~EosHandle() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i, handle = 0x%p", handleType_, sqlHandle_);
     
+    // Ref() and Unref() should ensure this does not happen
     assert(operation_.IsEmpty() && "The handle should not be destructed while an operation is in progress");
 
     FreeHandle();
@@ -54,6 +55,20 @@ void EosHandle::Init ( const char* className
 void EosHandle::Notify() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
     
+    if (!operation_.IsEmpty()) {
+#if defined(DEBUG)
+        EOS_DEBUG(L"Notify() called after FreeHandle()!\n");
+
+        auto op = !operation_.IsEmpty() 
+            ? ObjectWrap::Unwrap<IOperation>(NanNew(operation_))
+            : nullptr;
+
+        EOS_DEBUG(L"Operation was started at:\n");
+        Eos::PrintStackTrace(NanNew(op->GetStackTrace()));
+#endif
+    }
+
+    assert(hEvent_ && hWait_ && "handle has been freed while an operation was in progress");
     assert(!operation_.IsEmpty());
 
     NanScope();
@@ -113,8 +128,18 @@ SQLRETURN EosHandle::FreeHandle() {
         executing = true;
 #endif
 
-    if (executing)
-        EOS_DEBUG(L"Attempted to call FreeHandle() while an asynchronous operation is executing\n");
+    if (executing) {
+#if defined(DEBUG)
+        EOS_DEBUG(L"Called FreeHandle() while an asynchronous operation is executing\n");
+
+        auto op = !operation_.IsEmpty() 
+            ? ObjectWrap::Unwrap<IOperation>(NanNew(operation_))
+            : nullptr;
+
+        EOS_DEBUG(L"Operation was started at:");
+        Eos::PrintStackTrace(NanNew(op->GetStackTrace()));
+#endif
+    }
 
     auto ret = SQLFreeHandle(handleType_, sqlHandle_);
     if (!SQL_SUCCEEDED(ret))

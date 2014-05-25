@@ -289,4 +289,34 @@ Statement::~Statement() {
     EOS_DEBUG_METHOD();
 }
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+
+// This shouldn't need to be called for a statement, since
+// if a driver doesn't support asynchronous notifications then
+// turning them on should fail
+void Statement::DisableAsynchronousNotifications() {
+    EOS_DEBUG_METHOD();
+
+    auto ret = SQLSetConnectAttrW(
+        GetHandle(),
+        SQL_ATTR_ASYNC_STMT_EVENT,
+        nullptr,
+        SQL_IS_POINTER);
+
+    if (!SQL_SUCCEEDED(ret))
+        EOS_DEBUG(L"Failed to unset the connection's event handle");
+
+    ret = SQLSetConnectAttrW(
+        GetHandle(),
+        SQL_ATTR_ASYNC_ENABLE,
+        (SQLPOINTER)SQL_ASYNC_ENABLE_OFF,
+        SQL_IS_INTEGER);
+
+    if (!SQL_SUCCEEDED(ret))
+        EOS_DEBUG(L"Failed to turn off asynchronous notifications");
+
+    EosHandle::DisableAsynchronousNotifications();
+}
+#endif
+
 namespace { ClassInitializer<Statement> c; }
