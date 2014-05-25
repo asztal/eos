@@ -260,13 +260,15 @@ namespace Eos {
 #if defined(DEBUG)
             PrintCallbackChain(L"Added new callback");
 #endif 
-            auto p = callbackPending;
+
+            auto pending = callbackPending;
+            if (!pending)
+                callbackPending = true;
             uv_rwlock_wrunlock(&rwlock);
 
-            if (!p) {
-                callbackPending = true;
+            if (!pending)
                 uv_async_send(&async);
-            } else
+            else
                 EOS_DEBUG(L"Didn't wake main thread (already pending async wake up)\n");
         }
     }
@@ -304,11 +306,10 @@ namespace Eos {
             auto frame = stackTrace->GetFrame(i);
 
             WStringValue file(frame->GetScriptNameOrSourceURL());
-            assert(*file);
 
             int line = frame->GetLineNumber(), column = frame->GetColumn();
 
-            fwprintf(stderr, L"  at %ls:%i:%i\n", *file, line, column);
+            fwprintf(stderr, L"  at %ls:%i:%i\n", *file ? *file : L"<unknown>", line, column);
         }
     }
 

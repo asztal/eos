@@ -13,6 +13,9 @@ namespace Eos {
         Statement(SQLHSTMT hStmt, Connection* connection EOS_ASYNC_ONLY_ARG(HANDLE hEvent));
         ~Statement();
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+        void DisableAsynchronousNotifications();
+#endif
         static const int HandleType = SQL_HANDLE_STMT;
 
     public:
