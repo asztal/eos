@@ -306,14 +306,17 @@ describe("A prepared statement", function () {
         });
     });
 
-    xit("should allow executing", function (done) {
+    it("should allow executing", function (done) {
         stmt.execute(done);
     });
 
-    xit("should allow executing twice", function (done) {
+    it("should allow executing twice", function (done) {
         stmt.execute(function (err) {
-            if (err)
+            if (err) {
+                console.log("Err!!!!!!!!!!!", err);
+                process.exit(999);
                 return done(err);
+            }
 
             stmt.closeCursor();
 
@@ -341,6 +344,8 @@ describe("Cancelling statement operations", function () {
         });
     });
 
+    // This test is a bit flaky due to timing, but I really 
+    // don't know how else to test cancellation.
     it("should cause execute() operation to err with SQLSTATE HY008", function (done) {
         stmt.execute(function (err) {
             if (err && err.state == "HY008")
@@ -349,7 +354,11 @@ describe("Cancelling statement operations", function () {
                 return done(err);
             return done(new Error("Expected HY008 (operation cancelled)"));
         });
-        stmt.cancel();
+        
+        // Give time for the operation to get underway
+        setTimeout(function () {
+            stmt.cancel();
+        }, 500);
     });
 
     afterEach(function () {
