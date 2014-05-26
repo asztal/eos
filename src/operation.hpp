@@ -234,7 +234,7 @@ namespace Eos {
     protected:
         void CallbackErrorOverride(SQLRETURN ret) {
             Handle<Value> argv[] = { Owner()->GetLastError() };
-            GetCallback()->Call(NanGetCurrentContext()->Global(), 1, argv);
+            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), 1, argv);
         }
 
         static void UVWorkCallback(uv_work_t* req) {
