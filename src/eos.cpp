@@ -1,4 +1,5 @@
 #include "eos.hpp"
+#include "operation.hpp"
 
 #include "uv.h"
 #include <ctime>
@@ -59,6 +60,17 @@ namespace Eos {
         NODE_DEFINE_CONSTANT(exports, SQL_TYPE_TIMESTAMP);
         //NODE_DEFINE_CONSTANT(exports, SQL_INTERVAL);
         NODE_DEFINE_CONSTANT(exports, SQL_GUID);
+
+#if defined(DEBUG)
+        exports->Set(
+            NanSymbol("debugActiveOperations"), 
+            NanNew<Function, FunctionCallback>(&IOperation::DebugActiveOperations), 
+            (PropertyAttribute)(ReadOnly | DontDelete));
+        exports->Set(
+            NanSymbol("activeOperations"), 
+            NanNew<Function, FunctionCallback>(&IOperation::GetActiveOperations), 
+            (PropertyAttribute)(ReadOnly | DontDelete));
+#endif
 
         InitError(exports);
     }

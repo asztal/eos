@@ -5,6 +5,7 @@ module.exports = function (grunt) {
         jshint: {
             options: {
                 '-W030': true, // expect(xs).to.be.empty;
+                esnext: true
             },
             src: ['lib/*.js', 'spec/*.js', 'test.js'],
         },

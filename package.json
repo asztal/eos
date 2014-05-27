@@ -14,7 +14,9 @@
     "sql"
   ],
   "main": "./lib/eos",
-  "dependencies": {},
+  "dependencies": {
+    "co": "^3.0.6"
+  },
   "devDependencies": {
     "chai": "~1.9.0",
     "colors": "~0.6.2",

@@ -1,5 +1,6 @@
-﻿var eos = require("../"),
+﻿var eos = require("../").bindings,
     common = require("./common"),
+    colors = require("colors"),
     expect = common.expect,
     env = common.env,
     pp = common.pp,
@@ -320,7 +321,18 @@ describe("A prepared statement", function () {
 
             stmt.closeCursor();
 
+
             stmt.execute(done);
+            var ops = eos.activeOperations();
+            if (ops.length > 1) {
+                console.log("Active operations:".green.bold);
+                console.log("------------------\n".green.bold);
+                for (var i = 0; i < ops.length; i++) {
+                    console.log(ops[i].name.magenta.bold, "(refs: " + ops[i].refs.toString().yellow.bold + "):");
+                    console.log(ops[i].stackTrace);
+                }
+                process.exit(555);
+            }
         });
     });
 

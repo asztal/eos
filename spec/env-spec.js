@@ -1,4 +1,4 @@
-var eos = require("../"),
+var eos = require("../").bindings,
     common = require("./common"),
     expect = common.expect;
 
