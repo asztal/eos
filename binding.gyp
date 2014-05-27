@@ -12,7 +12,7 @@
           'src/conn.driverConnect.cpp',
           'src/conn.disconnect.cpp',
           'src/conn.browseConnect.cpp',
-        'src/operation.hpp',
+        'src/operation.hpp', 'src/operation.cpp',
         'src/parameter.hpp', 'src/parameter.cpp',
         'src/stmt.hpp', 'src/stmt.cpp',
           'src/stmt.describeCol.cpp',
@@ -27,7 +27,7 @@
           'src/stmt.putData.cpp'
       ],
       'defines' : [
-        'UNICODE', 'DEBUG', 'EOS_ENABLE_ASYNC_NOTIFICATIONS'
+        'UNICODE', 'DEBUG'
       ],
       'include_dirs': [
         "<!(node -e \"require('nan')\")"

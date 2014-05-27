@@ -4,6 +4,11 @@
 
 #include <uv.h>
 
+#if defined(DEBUG)
+#include <vector>
+#include <algorithm> 
+#endif
+
 namespace Eos {
     struct IOperation : ObjectWrap {
         IOperation() {
@@ -39,9 +44,47 @@ namespace Eos {
         Handle<StackTrace> GetStackTrace() const {
             return NanNew(stackTrace_);
         }
+
+    protected:
+        static std::vector<IOperation*> activeOperations_;
+
+    public:
+        static NAN_METHOD(DebugActiveOperations) {
+            NanScope();
+
+            EOS_DEBUG(L"Active operations:\n");
+            EOS_DEBUG(L"------------------\n");
+
+            for(auto it = activeOperations_.begin();
+                it != activeOperations_.end();
+                ++it)
+            {
+                EOS_DEBUG(L"\n\n%hs operation started at:\n", (*it)->Name());
+                PrintStackTrace((*it)->GetStackTrace());
+            }
+
+            NanReturnUndefined();
+        }
+
+        static NAN_METHOD(GetActiveOperations) {
+            NanScope();
+
+            auto ops = NanNew<Array>();
+
+            for(auto it = activeOperations_.begin();
+                it != activeOperations_.end();
+                ++it)
+            {
+                ops->Set(ops->Length(), NanObjectWrapHandle((*it)));
+            }
+
+            NanReturnValue(ops);
+        }
 #endif
 
     protected:
+        virtual const char* Name() const = 0;
+
         virtual SQLRETURN CallOverride() = 0;
 
         virtual void OnBegin() {}
@@ -53,7 +96,7 @@ namespace Eos {
             if (!SQL_SUCCEEDED(ret))
                 return CallbackErrorOverride(ret);
             
-            GetCallback()->Call(NanGetCurrentContext()->Global(), 0, nullptr);
+            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), 0, nullptr);
         }
         
         virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
@@ -64,7 +107,7 @@ namespace Eos {
 
         template <size_t argc>
         void Callback(Handle<Value> (&argv)[argc]) {
-            NanNew(callback_)->Call(NanGetCurrentContext()->Global(), argc, argv);
+            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), argc, argv);
         }
 
     protected:
@@ -82,17 +125,67 @@ namespace Eos {
 
             NanAssignPersistent(constructor_, NanNew<FunctionTemplate>(New));
             Constructor()->SetClassName(NanSymbol(TOp::Name()));
+            Constructor()->InstanceTemplate()->Set(NanSymbol("name"), NanNew<String>(TOp::Name()));
             Constructor()->InstanceTemplate()->SetInternalFieldCount(1);
+
+#if defined(DEBUG)
+#define EOS_COMMA ,
+            EOS_SET_GETTER(Constructor(), "stackTrace", Operation<TOwner EOS_COMMA TOp>, StackTraceGetter);
+            EOS_SET_GETTER(Constructor(), "refs", Operation<TOwner EOS_COMMA TOp>, RefsGetter);
+#undef EOS_COMMA
+#endif
         }
+
+#if defined(DEBUG)
+        NAN_GETTER(StackTraceGetter) const {
+            auto frames = NanNew<Array>();
+            auto stackTrace = GetStackTrace();
+            auto frameCount = stackTrace->GetFrameCount();
+            
+            auto kFile = NanSymbol("sourceFile");
+            auto kFunction = NanSymbol("functionName");
+            auto kLine = NanSymbol("lineNumber");
+
+            for (int i = 0; i < frameCount; i++) {
+                auto frame = stackTrace->GetFrame(i);
+                auto jsFrame = NanNew<Object>();
+                
+                auto file = frame->GetScriptNameOrSourceURL();
+                if (file.IsEmpty())
+                    file = NanNew<String>("<unknown>");
+                
+                auto fun = frame->GetFunctionName();
+                if (fun.IsEmpty())
+                    fun = NanNew<String>("<unknown>");
+                
+                jsFrame->Set(kFile, file);
+                jsFrame->Set(kFunction, fun);
+                jsFrame->Set(kLine, NanNew<Integer>(frame->GetLineNumber()));
+                
+                frames->Set(i, jsFrame);
+            }
+
+            NanReturnValue(frames);
+        }
+        
+        NAN_GETTER(RefsGetter) const {
+            NanReturnValue(NanNew<Integer>(refs_));
+        }
+#endif
 
         Operation() : completed_(false) { 
             EOS_DEBUG_METHOD();
+            
+#if defined(DEBUG)
+            activeOperations_.push_back(this);
+#endif
         }
         
         ~Operation() { 
+            EOS_DEBUG_METHOD();
+
             ownerPtr_ = nullptr;
             assert(completed_);
-            EOS_DEBUG_METHOD();
         }
 
         template<size_t argc>
@@ -205,15 +298,11 @@ namespace Eos {
             completed_ = true;
 
             SQLRETURN ret;
-            SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
-            
-            TryCatch tc;
-            CallbackOverride(ret);
-            if (tc.HasCaught())
-                FatalException(tc);
+            auto retCA = SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
 
-            Owner()->Unref();
-            this->Unref();
+            assert(SQL_SUCCEEDED(retCA) && "OnCompleted() called before operation actually completed");
+
+            Complete(ret);
         }
 
         void RunOnThreadPool() {
@@ -232,6 +321,31 @@ namespace Eos {
         }
 
     protected:
+        const char* Name() const {
+            return TOp::Name();
+        }
+
+        void Complete(SQLRETURN ret) {
+#if defined(DEBUG)
+            auto n0 = activeOperations_.size();
+            auto end = remove(activeOperations_.begin(), activeOperations_.end(), this);
+            activeOperations_.erase(end, activeOperations_.end());
+            auto n1 = activeOperations_.size();
+            assert(n1 < n0);
+            assert(n1 == n0 - 1);
+#endif
+
+            TryCatch tc;
+            CallbackOverride(ret);
+            if (tc.HasCaught())
+                FatalException(tc);
+
+            Owner()->Unref();
+
+            assert(refs_ == 1);
+            this->Unref();
+        }
+
         void CallbackErrorOverride(SQLRETURN ret) {
             Handle<Value> argv[] = { Owner()->GetLastError() };
             NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), 1, argv);
@@ -250,15 +364,10 @@ namespace Eos {
 
             NanScope();
 
+            assert(!op->completed_);
             op->completed_ = true;
-            
-            TryCatch tc;
-            op->CallbackOverride(op->result_);
-            if (tc.HasCaught())
-                FatalException(tc);
 
-            op->Owner()->Unref();
-            op->Unref();
+            op->Complete(op->result_);
         }
 
     private:

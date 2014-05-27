@@ -1,6 +1,6 @@
 var FS = require('fs'),
     Path = require('path'),
-    Eos = require('../'),
+    Eos = require('../').bindings,
     Utils = require('util');
 
 var settings;
