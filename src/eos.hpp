@@ -102,6 +102,16 @@ namespace Eos {
         virtual void Ref() = 0;
         virtual void Unref() = 0;
     };
+    
+#if defined(DEBUG)
+    extern int numberOfConstructedOperations;
+    extern int numberOfDestructedOperations;
+    extern int numberOfBegunOperations;
+    extern int numberOfSyncOperations;
+    extern int numberOfCompletedOperations;
+
+    void DebugWaitCounters();
+#endif
 
     HANDLE Wait(INotify* target);
     

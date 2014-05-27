@@ -33,7 +33,7 @@ namespace Eos {
                 NanNew<Boolean>(ret == SQL_PARAM_DATA_AVAILABLE)
             };
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "MoreResultsOperation"; }

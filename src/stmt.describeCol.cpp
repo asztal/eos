@@ -48,7 +48,7 @@ namespace Eos {
                     : (nullable_ == SQL_NULLABLE ? NanTrue() : NanFalse())
             };
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "NumResultColsOperation"; }

@@ -40,7 +40,7 @@ namespace Eos {
             if ((ret == SQL_PARAM_DATA_AVAILABLE || ret == SQL_NEED_DATA) && parameter_)
                 argv[1] = NanObjectWrapHandle(reinterpret_cast<Parameter*>(parameter_));
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "ParamDataOperation"; }

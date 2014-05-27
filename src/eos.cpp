@@ -78,6 +78,10 @@ namespace Eos {
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
 #pragma region("Wait")
     namespace Async {
+#if defined(DEBUG)
+        int numberOfWaits = 0, numberOfCallbacks = 0;
+#endif
+
         inline void CheckUV(int rc) {
             assert(rc == 0);
         }
@@ -103,11 +107,13 @@ namespace Eos {
 #endif
 
         void InitialiseWaiter() {
+            EOS_DEBUG_METHOD_FMT(L"%i++", initCount);
             assert(initCount >= 0);
 
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
-                CheckUV(uv_async_init(uv_default_loop(), &async, &ProcessCallbackQueue));
+                auto loop = uv_default_loop();
+                CheckUV(uv_async_init(loop, &async, &ProcessCallbackQueue));
                 CheckUV(uv_rwlock_init(&rwlock));
             } 
 
@@ -115,6 +121,7 @@ namespace Eos {
         }
 
         void DestroyWaiter() {
+            EOS_DEBUG_METHOD_FMT(L"%i--", initCount);
             assert(initCount >= 1);
 
             initCount--;
@@ -126,9 +133,6 @@ namespace Eos {
             }
         }
         
-        bool inCallback = false;
-        bool callbackPending = false;
-
         void PrintCallbackChain(const wchar_t* msg) {
             assert(msg);
 
@@ -162,12 +166,11 @@ namespace Eos {
 
             uv_rwlock_rdlock(&rwlock);
 
-            assert(callbackPending);
-
-            if (!firstCallback) {
-                callbackPending = false;
+            // Probably, uv_async_send() was called twice, and both calls resulted in a 
+            // wake up of the main event loop, even though the first wake-up cleared 
+            // both of the pending callbacks.
+            if (!firstCallback)
                 return;
-            }
             
 #if defined(DEBUG)
             assert(initCount);
@@ -179,18 +182,14 @@ namespace Eos {
             while (firstCallback) {
                 assert(firstCallback->target);
                 
-                // Helps debugging... globals don't seem to be accessible when debugging
 #if defined(DEBUG)
-                auto fc = firstCallback; 
-                auto ic = initCount;
-
-                auto node = fc; auto ni = 0;
+                auto node = firstCallback; auto numCallbacks = 0;
                 while (node) {
                     node = node->next;
-                    ni++;
+                    numCallbacks++;
                 }
 
-                assert(ic >= ni);
+                assert(initCount >= numCallbacks);
 #endif
 
                 HANDLE hWait = firstCallback->target->GetWaitHandle();
@@ -211,22 +210,15 @@ namespace Eos {
                 // lock the lock since it will have been destroyed
                 if (!initCount) {
                     assert(!firstCallback && "*Must* have been the last callback in the queue if initCount is 0");
-                    assert(!inCallback);
-                    inCallback = true;
+                    DEBUG_ONLY(numberOfCallbacks++);
                     current->target->Notify();
-                    // Bogus asserts - notify() might have done anything,
-                    // or 
-                    // e.g. scheduling more callbacks, such that
-                    // assert(firstCallback == current->next);
-                    // assert(inCallback);
-                    inCallback = false;
                     current->target->Unref();
                     delete current;
-                    callbackPending = false;
                     return; 
                 }
 
                 uv_rwlock_rdunlock(&rwlock);
+                DEBUG_ONLY(numberOfCallbacks++);
                 current->target->Notify();
                 current->target->Unref();
                 uv_rwlock_rdlock(&rwlock);
@@ -234,8 +226,8 @@ namespace Eos {
                 delete current;
             }
             
-            assert(initCount);
-            callbackPending = false;
+            // We've run out of callbacks, but there are still pending operations.
+            assert(initCount >= 0);
             uv_rwlock_rdunlock(&rwlock);
         }
 
@@ -272,24 +264,36 @@ namespace Eos {
 #if defined(DEBUG)
             PrintCallbackChain(L"Added new callback");
 #endif 
-
-            auto pending = callbackPending;
-            if (!pending)
-                callbackPending = true;
+            
+            uv_async_send(&async);
             uv_rwlock_wrunlock(&rwlock);
-
-            if (!pending)
-                uv_async_send(&async);
-            else
-                EOS_DEBUG(L"Didn't wake main thread (already pending async wake up)\n");
         }
     }
 
+#if defined(DEBUG)
+    int numberOfConstructedOperations = 0;
+    int numberOfDestructedOperations = 0;
+    int numberOfBegunOperations = 0;
+    int numberOfSyncOperations = 0;
+    int numberOfCompletedOperations = 0;
+
+    void DebugWaitCounters() {
+        EOS_DEBUG(L"\n");
+        EOS_DEBUG(L"Number of Wait() calls: %i\n", Eos::Async::numberOfWaits);
+        EOS_DEBUG(L"Number of callbacks: %i\n", Eos::Async::numberOfCallbacks);
+        EOS_DEBUG(L"initCount: %i\n", Eos::Async::initCount);
+        EOS_DEBUG(L"\n");
+        EOS_DEBUG(L"Number of constructed operations: %i\n", numberOfConstructedOperations);
+        EOS_DEBUG(L"Number of destructed operations: %i\n", numberOfDestructedOperations);
+        EOS_DEBUG(L"Number of begun operations: %i\n", numberOfBegunOperations);
+        EOS_DEBUG(L"Number of synchronous operations: %i\n", numberOfSyncOperations);
+        EOS_DEBUG(L"Number of completed operations: %i\n", numberOfCompletedOperations);
+        EOS_DEBUG(L"\n");
+    }
+#endif
+
     HANDLE Wait(INotify* notify) {
         EOS_DEBUG_METHOD();
-
-        // Bogus assert - actually, this case is quite expected.
-        // assert(!Async::inCallback);
 
         Async::InitialiseWaiter();
 
@@ -298,7 +302,10 @@ namespace Eos {
             notify->Ref();
         else
             EOS_DEBUG(L"RegisterWaitForSingleObject failed\n");
-        
+       
+        EOS_DEBUG(L"Eos::Wait(%i++)", Eos::Async::numberOfWaits);
+        DEBUG_ONLY(Eos::Async::numberOfWaits++);
+
         return hRegisteredWaitHandle;
     }
 #pragma endregion

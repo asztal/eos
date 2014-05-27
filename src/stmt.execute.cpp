@@ -42,7 +42,7 @@ namespace Eos {
                 ret == SQL_PARAM_DATA_AVAILABLE ? NanTrue() : NanFalse()
             };
             
-            Callback(argv);
+            MakeCallback(argv);
         }
     };
 }

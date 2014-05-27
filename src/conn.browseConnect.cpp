@@ -53,7 +53,7 @@ namespace Eos {
 
             EOS_DEBUG(L"Result: %i, %ls\n", ret, outConnectionString_);
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
     protected:

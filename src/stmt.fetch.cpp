@@ -32,7 +32,7 @@ namespace Eos {
                 ret == SQL_NO_DATA ? NanFalse() : NanTrue()
             };
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "FetchOperation"; }

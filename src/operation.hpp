@@ -5,8 +5,11 @@
 #include <uv.h>
 
 #if defined(DEBUG)
+#define DEBUG_ONLY(x) x
 #include <vector>
-#include <algorithm> 
+#include <algorithm>
+#else
+#define DEBUG_ONLY(x)
 #endif
 
 namespace Eos {
@@ -27,18 +30,7 @@ namespace Eos {
             EOS_DEBUG_METHOD();
         }
 
-        SQLRETURN Call() {
-            return this->CallOverride();
-        }
-
-        void Callback(SQLRETURN ret) {
-            TryCatch tc;
-            this->CallbackOverride(ret);
-            if (tc.HasCaught())
-                FatalException(tc);
-        }
-
-        virtual void OnCompleted() = 0;
+        virtual void OnCompletedAsync() = 0;
 
 #if defined(DEBUG)
         Handle<StackTrace> GetStackTrace() const {
@@ -68,6 +60,11 @@ namespace Eos {
 
         static NAN_METHOD(GetActiveOperations) {
             NanScope();
+            
+
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+            DebugWaitCounters();
+#endif
 
             auto ops = NanNew<Array>();
 
@@ -86,36 +83,17 @@ namespace Eos {
         virtual const char* Name() const = 0;
 
         virtual SQLRETURN CallOverride() = 0;
-
-        virtual void OnBegin() {}
-        
-        virtual void CallbackOverride(SQLRETURN ret) {
-            // Default implementation.
-            EOS_DEBUG_METHOD();
-            
-            if (!SQL_SUCCEEDED(ret))
-                return CallbackErrorOverride(ret);
-            
-            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), 0, nullptr);
-        }
-        
+        virtual void CallbackOverride(SQLRETURN ret) = 0;
         virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
 
         Handle<Function> GetCallback() const {
             return NanNew(callback_);
         }
 
-        template <size_t argc>
-        void Callback(Handle<Value> (&argv)[argc]) {
-            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), argc, argv);
-        }
-
     protected:
         Persistent<Function> callback_;
 
-#if defined(DEBUG)
-        Persistent<StackTrace> stackTrace_;
-#endif
+        DEBUG_ONLY(Persistent<StackTrace> stackTrace_);
     };
 
     template <class TOwner, class TOp>
@@ -132,6 +110,10 @@ namespace Eos {
 #define EOS_COMMA ,
             EOS_SET_GETTER(Constructor(), "stackTrace", Operation<TOwner EOS_COMMA TOp>, StackTraceGetter);
             EOS_SET_GETTER(Constructor(), "refs", Operation<TOwner EOS_COMMA TOp>, RefsGetter);
+            EOS_SET_GETTER(Constructor(), "begun", Operation<TOwner EOS_COMMA TOp>, BegunGetter);
+            EOS_SET_GETTER(Constructor(), "completed", Operation<TOwner EOS_COMMA TOp>, CompletedGetter);
+            EOS_SET_GETTER(Constructor(), "sync", Operation<TOwner EOS_COMMA TOp>, SyncGetter);
+            EOS_SET_GETTER(Constructor(), "result", Operation<TOwner EOS_COMMA TOp>, ResultGetter);
 #undef EOS_COMMA
 #endif
         }
@@ -171,21 +153,43 @@ namespace Eos {
         NAN_GETTER(RefsGetter) const {
             NanReturnValue(NanNew<Integer>(refs_));
         }
+        
+        NAN_GETTER(ResultGetter) const {
+            NanReturnValue(NanNew<Integer>(result_));
+        }
+        
+        NAN_GETTER(BegunGetter) const {
+            NanReturnValue(NanNew<Boolean>(begun_));
+        }
+        
+        NAN_GETTER(CompletedGetter) const {
+            NanReturnValue(NanNew<Boolean>(completed_));
+        }
+        
+        NAN_GETTER(SyncGetter) const {
+            NanReturnValue(NanNew<Boolean>(sync_));
+        }
 #endif
 
-        Operation() : completed_(false) { 
+        Operation() 
+            : completed_(false)
+            , begun_(false)
+            , sync_(false)
+            , result_(666)
+            , ownerPtr_(nullptr) 
+        { 
             EOS_DEBUG_METHOD();
             
-#if defined(DEBUG)
-            activeOperations_.push_back(this);
-#endif
+            DEBUG_ONLY(numberOfConstructedOperations++);
         }
         
         ~Operation() { 
             EOS_DEBUG_METHOD();
 
+            DEBUG_ONLY(numberOfDestructedOperations++);
+
             ownerPtr_ = nullptr;
-            assert(completed_);
+            assert(begun_ && completed_);
         }
 
         template<size_t argc>
@@ -203,9 +207,9 @@ namespace Eos {
 
             if (!args.IsConstructCall()) {
                 EOS_DEBUG(L"Warning: %ls called, but args.IsConstructCall() is false\n", __FUNCTIONW__);
-#if defined(DEBUG)
-                PrintStackTrace();
-#endif
+
+                DEBUG_ONLY(PrintStackTrace());
+
                 // XXX There must be a better way...
                 auto argc = args.Length();
                 auto argv = new Handle<Value>[argc];
@@ -240,22 +244,26 @@ namespace Eos {
             return NanNew(constructor_);
         }
 
-        TOwner* Owner() { return ownerPtr_; }
+        TOwner* Owner() { 
+            assert(ownerPtr_);
+            return ownerPtr_; 
+        }
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         // Returns true if the operation completed synchronously.
-        bool BeginAsync(bool isComplete = false) {
+        bool BeginAsync() {
             EOS_DEBUG_METHOD();
             
-            OnBegin();
+            Begin();
 
-            auto ret = Call();
+            result_ = CallOverride();
 
             // As explained by the MSDN documentation, enabling asynchronous
             // notifications on a connection handle always succeeds if it is 
             // not connected, because it doesn't know which driver it will be
             // using. If the driver does not support asynchronous operations, 
             // it will return SQL_ERROR with SQLSTATE S1118.
-            if (ret == SQL_ERROR) {
+            if (result_ == SQL_ERROR) {
                 wchar_t state[6];
 
                 // The documentation doesn't explicitly say that you can 
@@ -276,39 +284,42 @@ namespace Eos {
                     
                     // Now try again. If it fails again for the same reason,
                     // pass the error back to JS.
-                    ret = Call();
+                    result_ = CallOverride();
                 }
             }
 
-            EOS_DEBUG(L"Immediate Result: %hi\n", ret);
+            EOS_DEBUG(L"Immediate Result: %hi\n", result_);
             
-            if (ret == SQL_STILL_EXECUTING) {
-                assert(!isComplete);
+            if (result_ == SQL_STILL_EXECUTING)
                 return false; // Asynchronous
-            }
         
-            Callback(ret);
+            sync_ = true;
+            DEBUG_ONLY(numberOfSyncOperations++);
+
+            Complete();
+
             return true; // Synchronous
         }
 
         // Completed using asynchronous notifications
-        void OnCompleted() {
+        void OnCompletedAsync() {
             EOS_DEBUG_METHOD_FMT(L"owner: 0x%p, operation: 0x%p", Owner(), this);
-            assert(!completed_);
-            completed_ = true;
 
-            SQLRETURN ret;
-            auto retCA = SQLCompleteAsync(TOwner::HandleType, Owner()->GetHandle(), &ret);
+            auto retCA = SQLCompleteAsync(
+                TOwner::HandleType, 
+                Owner()->GetHandle(), 
+                &result_);
 
             assert(SQL_SUCCEEDED(retCA) && "OnCompleted() called before operation actually completed");
 
-            Complete(ret);
+            Complete();
         }
+#endif
 
         void RunOnThreadPool() {
             EOS_DEBUG_METHOD();
 
-            OnBegin();
+            Begin();
 
             new(&req_) uv_work_t;
             req_.data = this;
@@ -324,64 +335,100 @@ namespace Eos {
         const char* Name() const {
             return TOp::Name();
         }
+        
+        // Code common to beginning both Async and Thread Pool operations.
+        void Begin() {
+            assert(!begun_ && !completed_);
 
-        void Complete(SQLRETURN ret) {
+            begun_ = true;
+
+            DEBUG_ONLY(numberOfBegunOperations++);
+            DEBUG_ONLY(activeOperations_.push_back(this));
+
+            Owner()->Ref();
+            this->Ref();
+        }
+
+        // Default implementation.
+        void CallbackOverride(SQLRETURN ret) {
+            EOS_DEBUG_METHOD();
+            
+            if (!SQL_SUCCEEDED(ret))
+                return CallbackErrorOverride(ret);
+            
+            MakeCallback(0, nullptr);
+        }
+
+        void CallbackErrorOverride(SQLRETURN ret) {
+            Handle<Value> argv[] = { Owner()->GetLastError() };
+            MakeCallback(argv);
+        }
+
+        void MakeCallback(int argc, Handle<Value>* argv) {
+            auto cb = GetCallback();
+            Owner()->Unref();
+            Unref();
+            NanMakeCallback(NanGetCurrentContext()->Global(), cb, argc, argv);
+        }
+
+        // Convenience overload
+        template <size_t argc>
+        void MakeCallback(Handle<Value> (&argv)[argc]) {
+            MakeCallback(argc, argv);
+        }
+
+        // Removes from the active operations list, and performs the callback, catching
+        // any errors (and raising as fatal exceptions).
+        void Complete() {
+            assert(begun_ && !completed_);
+            completed_ = true;
+
 #if defined(DEBUG)
+            numberOfCompletedOperations++;
+
             auto n0 = activeOperations_.size();
             auto end = remove(activeOperations_.begin(), activeOperations_.end(), this);
             activeOperations_.erase(end, activeOperations_.end());
             auto n1 = activeOperations_.size();
             assert(n1 < n0);
             assert(n1 == n0 - 1);
+            assert(find(activeOperations_.cbegin(), activeOperations_.cend(), this) 
+                == activeOperations_.cend()); 
 #endif
 
             TryCatch tc;
-            CallbackOverride(ret);
+            CallbackOverride(result_);
             if (tc.HasCaught())
                 FatalException(tc);
-
-            Owner()->Unref();
-
-            assert(refs_ == 1);
-            this->Unref();
         }
 
-        void CallbackErrorOverride(SQLRETURN ret) {
-            Handle<Value> argv[] = { Owner()->GetLastError() };
-            NanMakeCallback(NanGetCurrentContext()->Global(), GetCallback(), 1, argv);
-        }
-
+#pragma region UV thread pool code
         static void UVWorkCallback(uv_work_t* req) {
             auto op = static_cast<Operation<TOwner, TOp>*>(req->data);
             assert(op && &op->req_ == req);
 
-            op->result_ = op->Call();
+            op->result_ = op->CallOverride();
         }
 
         static void UVCompletedCallback(uv_work_t* req, int status) {
             auto op = static_cast<Operation<TOwner, TOp>*>(req->data);
             assert(op && &op->req_ == req);
+            assert(op->begun_ && !op->completed_);
 
             NanScope();
 
-            assert(!op->completed_);
-            op->completed_ = true;
-
-            op->Complete(op->result_);
+            op->Complete();
         }
+#pragma endregion 
 
     private:
-        void OnBegin() {
-            EOS_DEBUG_METHOD();
-            Owner()->Ref();
-            this->Ref();
-        }
+        Operation(const Operation<TOwner, TOp>& other); // = delete
 
         // For thread pool tasks
         uv_work_t req_;
         SQLRETURN result_;
 
-        bool completed_;
+        bool completed_, begun_, sync_;
         TOwner* ownerPtr_;
         Persistent<Object> owner_;
         static Persistent<FunctionTemplate> constructor_;

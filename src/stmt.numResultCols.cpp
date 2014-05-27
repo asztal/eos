@@ -32,7 +32,7 @@ namespace Eos {
                 NanNew<Integer>(columnCount_)
             };
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "NumResultColsOperation"; }

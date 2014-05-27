@@ -55,18 +55,8 @@ void EosHandle::Init ( const char* className
 void EosHandle::Notify() {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
     
-    if (operation_.IsEmpty()) {
-#if defined(DEBUG)
+    if (operation_.IsEmpty())
         EOS_DEBUG(L"Notify() called after FreeHandle()!\n");
-
-        auto op = !operation_.IsEmpty() 
-            ? ObjectWrap::Unwrap<IOperation>(NanNew(operation_))
-            : nullptr;
-
-        EOS_DEBUG(L"Operation was started at:\n");
-        Eos::PrintStackTrace(NanNew(op->GetStackTrace()));
-#endif
-    }
 
     assert(hEvent_ && hWait_ && "handle has been freed while an operation was in progress");
     assert(!operation_.IsEmpty());
@@ -76,7 +66,7 @@ void EosHandle::Notify() {
     NanDisposePersistent(operation_);
     hWait_ = nullptr;
 
-    ObjectWrap::Unwrap<IOperation>(op)->OnCompleted();
+    ObjectWrap::Unwrap<IOperation>(op)->OnCompletedAsync();
 }
 
 void EosHandle::DisableAsynchronousNotifications() {
@@ -108,6 +98,9 @@ void EosHandle::NotifyThreadPool() {
 
 NAN_METHOD(EosHandle::Free) {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
+
+    if (!operation_.IsEmpty() || hWait_)
+        return NanThrowError("Cannot free the handle - an operation is in progress");
 
     auto ret = FreeHandle();
     if (!SQL_SUCCEEDED(ret))
@@ -151,6 +144,7 @@ SQLRETURN EosHandle::FreeHandle() {
     if (hEvent_) {
         if(!CloseHandle(hEvent_))
             EOS_DEBUG(L"Failed to close hEvent_\n");
+        hWait_ = nullptr;
         hEvent_ = nullptr;
     }
 #endif

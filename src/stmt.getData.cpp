@@ -130,7 +130,7 @@ namespace Eos {
                     argv[0] = OdbcError("Unable to interpret contents of result buffer");
             }
             
-            Callback(argv);
+            MakeCallback(argv);
         }
 
         static const char* Name() { return "GetDataOperation"; }

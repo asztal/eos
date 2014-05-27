@@ -22,8 +22,8 @@ namespace Eos {
         Handle<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }
         IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(NanNew(operation_)); }
         
-        void Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Ref(); }
-        void Unref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_); ObjectWrap::Unref(); }
+        void Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i, refs = %i++", handleType_, refs_); ObjectWrap::Ref(); }
+        void Unref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i, refs = %i--", handleType_, refs_); ObjectWrap::Unref(); }
 
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         // INotify
@@ -74,6 +74,7 @@ namespace Eos {
             NanReturnUndefined();
         }
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         template <typename TOp>
         void RunAsync(Handle<Object> op) {
             bool completedSynchronously = 
@@ -81,18 +82,21 @@ namespace Eos {
 
             // Only register a wait if it did not complete synchronously
             // It should be safe to register the wait even if the event is already signalled.
-            if (!completedSynchronously) {
-                EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
-                if (hWait_ = Eos::Wait(this))
-                    NanAssignPersistent(operation_, op);
-                else { 
-                    NanThrowError(OdbcError("Unable to begin asynchronous operation"));
-                    return;
-                }
-            } else {
+            if (completedSynchronously) {
                 EOS_DEBUG(L"%hs Completed synchronously\n", TOp::Name());
+                return;
             }
+
+            EOS_DEBUG(L"%hs Executing asynchronously\n", TOp::Name());
+            if (hWait_ = Eos::Wait(this))
+                NanAssignPersistent(operation_, op);
+            else { 
+                NanThrowError(OdbcError("Unable to begin asynchronous operation"));
+                return;
+            }
+
         }
+#endif
 
         bool IsValid() const { return sqlHandle_ != SQL_NULL_HANDLE; }
         SQLRETURN FreeHandle();
