@@ -29,8 +29,10 @@ namespace Eos {
         virtual ~IOperation() {
             EOS_DEBUG_METHOD();
         }
-
+        
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         virtual void OnCompletedAsync() = 0;
+#endif
 
 #if defined(DEBUG)
         Handle<StackTrace> GetStackTrace() const {
@@ -147,27 +149,27 @@ namespace Eos {
                 frames->Set(i, jsFrame);
             }
 
-            NanReturnValue(frames);
+            EosMethodReturnValue(frames);
         }
         
         NAN_GETTER(RefsGetter) const {
-            NanReturnValue(NanNew<Integer>(refs_));
+            EosMethodReturnValue(NanNew<Integer>(refs_));
         }
         
         NAN_GETTER(ResultGetter) const {
-            NanReturnValue(NanNew<Integer>(result_));
+            EosMethodReturnValue(NanNew<Integer>(result_));
         }
         
         NAN_GETTER(BegunGetter) const {
-            NanReturnValue(NanNew<Boolean>(begun_));
+            EosMethodReturnValue(NanNew<Boolean>(begun_));
         }
         
         NAN_GETTER(CompletedGetter) const {
-            NanReturnValue(NanNew<Boolean>(completed_));
+            EosMethodReturnValue(NanNew<Boolean>(completed_));
         }
         
         NAN_GETTER(SyncGetter) const {
-            NanReturnValue(NanNew<Boolean>(sync_));
+            EosMethodReturnValue(NanNew<Boolean>(sync_));
         }
 #endif
 

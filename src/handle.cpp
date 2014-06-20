@@ -2,6 +2,10 @@
 
 using namespace Eos;
 
+#if defined(DEBUG)
+    std::vector<EosHandle*> EosHandle::active_;
+#endif
+
 EosHandle::EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle EOS_ASYNC_ONLY_ARG(HANDLE hEvent))
     : handleType_(handleType)
     , sqlHandle_(handle)
@@ -99,7 +103,13 @@ void EosHandle::NotifyThreadPool() {
 NAN_METHOD(EosHandle::Free) {
     EOS_DEBUG_METHOD_FMT(L"handleType = %i", handleType_);
 
-    if (!operation_.IsEmpty() || hWait_)
+    auto inProgress = !operation_.IsEmpty();
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
+    if (hWait_)
+        inProgress = true;
+#endif
+
+    if (inProgress)
         return NanThrowError("Cannot free the handle - an operation is in progress");
 
     auto ret = FreeHandle();
@@ -153,3 +163,15 @@ SQLRETURN EosHandle::FreeHandle() {
 
     return SQL_SUCCESS;
 }
+
+#if defined(DEBUG)
+NAN_METHOD(EosHandle::GetActiveHandles) {
+    NanScope();
+
+    auto array = NanNew<Array>();
+    for (std::size_t i = 0; i < active_.size(); i++)
+        array->Set(i, NanObjectWrapHandle(active_[i]));
+
+    NanReturnValue(array);
+}
+#endif

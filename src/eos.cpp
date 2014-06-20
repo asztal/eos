@@ -1,4 +1,5 @@
 #include "eos.hpp"
+#include "handle.hpp"
 #include "operation.hpp"
 
 #include "uv.h"
@@ -6,6 +7,8 @@
 #include <climits>
 
 int EosMethodDebugger::depth = 0;
+
+        uv_loop_t* default_loop;
 
 namespace Eos {
     ClassInitializerRecord rootClassInitializer = { 0 };
@@ -64,16 +67,29 @@ namespace Eos {
 #if defined(DEBUG)
         exports->Set(
             NanSymbol("debugActiveOperations"), 
-            NanNew<Function, FunctionCallback>(&IOperation::DebugActiveOperations), 
+            NanNew<FunctionTemplate, NanFunctionCallback>(&IOperation::DebugActiveOperations)->GetFunction(), 
             (PropertyAttribute)(ReadOnly | DontDelete));
+        auto x = 
         exports->Set(
             NanSymbol("activeOperations"), 
-            NanNew<Function, FunctionCallback>(&IOperation::GetActiveOperations), 
+            NanNew<FunctionTemplate, NanFunctionCallback>(&IOperation::GetActiveOperations)->GetFunction(), 
+            (PropertyAttribute)(ReadOnly | DontDelete));
+        exports->Set(
+            NanSymbol("activeHandles"), 
+            NanNew<FunctionTemplate, NanFunctionCallback>(&EosHandle::GetActiveHandles)->GetFunction(), 
             (PropertyAttribute)(ReadOnly | DontDelete));
 #endif
 
         InitError(exports);
     }
+
+#if defined(DEBUG)
+    int numberOfConstructedOperations = 0;
+    int numberOfDestructedOperations = 0;
+    int numberOfBegunOperations = 0;
+    int numberOfSyncOperations = 0;
+    int numberOfCompletedOperations = 0;
+#endif
 
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
 #pragma region("Wait")
@@ -87,7 +103,7 @@ namespace Eos {
         }
 
         int initCount = 0;
-        uv_async_t async;
+        uv_async_t* async = nullptr;
         uv_rwlock_t rwlock;
         
         struct Callback {
@@ -112,14 +128,27 @@ namespace Eos {
 
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
-                auto loop = uv_default_loop();
-                CheckUV(uv_async_init(loop, &async, &ProcessCallbackQueue));
+
+                async = new uv_async_t();
+
+                auto loop = default_loop = uv_default_loop();
+                CheckUV(uv_async_init(loop, async, &ProcessCallbackQueue));
                 CheckUV(uv_rwlock_init(&rwlock));
             } 
 
             initCount++;
         }
 
+        void ClosedAsync(uv_handle_t* async) {
+            EOS_DEBUG_METHOD();
+
+            delete async;
+            async = nullptr;
+        }
+
+        // TODO is it possible that calling uv_close(&async) while inside
+        // the async wake-up callback is what is causing the event loop to
+        // stick around too long?
         void DestroyWaiter() {
             EOS_DEBUG_METHOD_FMT(L"%i--", initCount);
             assert(initCount >= 1);
@@ -128,8 +157,9 @@ namespace Eos {
 
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
+
                 uv_rwlock_destroy(&rwlock);
-                uv_close(reinterpret_cast<uv_handle_t*>(&async), nullptr);
+                uv_close(reinterpret_cast<uv_handle_t*>(&async), ClosedAsync);
             }
         }
         
@@ -265,18 +295,13 @@ namespace Eos {
             PrintCallbackChain(L"Added new callback");
 #endif 
             
-            uv_async_send(&async);
+            assert(async);
+            uv_async_send(async);
             uv_rwlock_wrunlock(&rwlock);
         }
     }
 
 #if defined(DEBUG)
-    int numberOfConstructedOperations = 0;
-    int numberOfDestructedOperations = 0;
-    int numberOfBegunOperations = 0;
-    int numberOfSyncOperations = 0;
-    int numberOfCompletedOperations = 0;
-
     void DebugWaitCounters() {
         EOS_DEBUG(L"\n");
         EOS_DEBUG(L"Number of Wait() calls: %i\n", Eos::Async::numberOfWaits);
@@ -303,7 +328,7 @@ namespace Eos {
         else
             EOS_DEBUG(L"RegisterWaitForSingleObject failed\n");
        
-        EOS_DEBUG(L"Eos::Wait(%i++)", Eos::Async::numberOfWaits);
+        EOS_DEBUG(L"Eos::Wait(%i++)\n", Eos::Async::numberOfWaits);
         DEBUG_ONLY(Eos::Async::numberOfWaits++);
 
         return hRegisteredWaitHandle;

@@ -13,6 +13,7 @@
 
 namespace Eos {
     struct EosHandle: ObjectWrap EOS_ASYNC_ONLY_ARG(INotify) {
+
         EosHandle(SQLSMALLINT handleType, const SQLHANDLE handle EOS_ASYNC_ONLY_ARG(HANDLE hEvent));
         ~EosHandle();
         
@@ -22,8 +23,31 @@ namespace Eos {
         Handle<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }
         IOperation* Operation() { return ObjectWrap::Unwrap<IOperation>(NanNew(operation_)); }
         
-        void Ref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i, refs = %i++", handleType_, refs_); ObjectWrap::Ref(); }
-        void Unref() { EOS_DEBUG_METHOD_FMT(L"handleType = %i, refs = %i--", handleType_, refs_); ObjectWrap::Unref(); }
+#if defined(DEBUG)
+        static std::vector<EosHandle*> active_;
+        static NAN_METHOD(GetActiveHandles);
+#endif
+
+        void Ref() { 
+            EOS_DEBUG_METHOD_FMT(L"this = 0x%p, handleType = %i, refs = %i++", this, handleType_, refs_);
+#if defined(DEBUG)
+            if (refs_ == 0) 
+                active_.push_back(this);
+#endif
+            ObjectWrap::Ref(); 
+        }
+
+        void Unref() { 
+            EOS_DEBUG_METHOD_FMT(L"this = 0x%p, handleType = %i, refs = %i--", this, handleType_, refs_);
+#if defined(DEBUG)
+            if (refs_ == 1) {
+                auto it = remove(active_.begin(), active_.end(), this);
+                active_.erase(it, active_.end());
+            }
+#endif
+            ObjectWrap::Unref(); 
+
+        }
 
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         // INotify
