@@ -12,29 +12,46 @@ eos
 
 var eos = require('eos');
 
-var env = new eos.Environment();
-var conn = env.newConnection();
 
-conn.connect("DSN=Customers;UID=Sara;PWD=12345", function(err) {
-	if (err)
-    	return console.log("Couldn't connect!", err.message);
+function getCustomerName(customerID, callback) {
+    var env = new eos.Environment();
+    var conn = env.newConnection();
 
-	var stmt = conn.newStatement();
-    
-    // At this point, I guess we'd do something with the statement.
-    // It would probably help if I'd implemented any statement operations.
-    console.log("Just making a statement.");
-    
-    stmt.free();
-    
-    conn.disconnect(function(err) {
-    	if (err)
-        	console.log("Couldn't disconnect!", err.message);
-    
-    	conn.free();
-        env.free();
+    conn.connect("DSN=Customers;UID=Sara;PWD=12345", function(err) {
+        if (err)
+    	    return callback(err);
+
+	    var stmt = conn.newStatement();
+        
+        stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, customerID);
+        
+        stmt.execDirect("select ID, name, address from Customers where ID = ?", function (err) {
+            if (err)
+                return callback(err);
+            
+    	    stmt.fetch(function(err, hasData) {
+    	        if (!err)
+    	            return callback (err);
+    	        if (!hasData)
+    	    	    return callback (new Error("Customer not found"));
+    	    	
+    	        stmt.getData(2, eos.SQL_LONGVARCHAR, null, false, function (err, name) {
+    	    	    callback(err, name);
+    	    	    
+    	    	    stmt.cancel();
+                    
+                    conn.disconnect(function(err) {
+    	                if (err)
+        	                console.log("Couldn't disconnect!", err.message);
+                        
+    	                conn.free();
+                        env.free();
+                    });
+    	        });
+    	    });
+        });
     });
-});
+}
 
 
 
@@ -49,14 +66,14 @@ JavaScript object is garbage collected, but you may choose to do so earlier.
 Eos makes no attempt to provide bells and whistles: this is a low-level wrapper around ODBC which
 can be used as a building block for a more high-level library.
 
-Most functions in Eos are asynchronous, however some are guaranteed to return synchronously and are
+Most functions in Eos are asynchronous (any ODBC call which can return ``SQL_STILL_EXECUTING``), however some are guaranteed to return synchronously and are
 marked here with _(synchronous)_ accordingly.
 
 ### Asynchronous execution
 
-ODBC provides for synchronous calls, and asynchronous calls using either [polling](http://msdn.microsoft.com/en-us/library/ms713563%28v=vs.85%29.aspx) (requires ODBC 3.80, e.g. Windows 7) or the [notification method](http://msdn.microsoft.com/en-us/library/hh405038%28v=vs.85%29.aspx) (requires ODBC 3.81, e.g. Windows 8). 
+ODBC itself provides for synchronous calls, and asynchronous calls using either [polling](http://msdn.microsoft.com/en-us/library/ms713563%28v=vs.85%29.aspx) (requires ODBC 3.80, e.g. Windows 7) or the [notification method](http://msdn.microsoft.com/en-us/library/hh405038%28v=vs.85%29.aspx) (requires ODBC 3.81, e.g. Windows 8). 
 
-Currently Eos uses only the notification method, but will be extended to support the polling method and the eventually using the [libuv](https://github.com/joyent/libuv) thread pool where asynchronous execution is not supported at all.
+Eos uses the notification method where possible, and falls back to using synchronous calls on the  [libuv](https://github.com/joyent/libuv) thread pool where the notification method is not supported. The main advantage of the notification method is that fewer thread pool threads are used (1 thread per 64 concurrent operations, rather than 1 thread for each operation). The polling asynchronous method is not supported, but could be implemented. Synchronous versions of asychronous API calls are not yet implemented, but could also be done.
 
 ### Documentation syntax
 
