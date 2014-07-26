@@ -52,9 +52,6 @@ function getCustomerName(customerID, callback) {
         });
     });
 }
-
-
-
 ```
 
 # API
@@ -299,17 +296,29 @@ To start reading the first result set (if there is any), call `Statement.fetch()
 
 If there are streamed output or input/output parameters, _hasData_ may be true (provided that there are no 
 warning messages, result sets, or input parameters. If so, those must be dealt with first). In this case, call
-`Statement.paramData()` to determine which output paramater has data available (as with input parameters, the order 
+`Statement.paramData()` to determine which output parameter has data available (as with input parameters, the order 
 in which output parameters become available is defined by the driver). If there are result sets or warning messages,
 use `Statement.moreResults()` to retrieve streamed output parameters.
 
 ### Statement.execDirect(sql, callback [err, needData, dataAvailable])
 
-Wraps **SQLExecDirect**. The same as `Statement.execute`, except there is no need to call `Statement.prepare()`.
+Wraps **SQLExecDirect**, used to execute SQL without preparing. The same as `Statement.execute()`, except there is no need to call `Statement.prepare()`. Generally, this is preferable to using `prepare` then `execute`, [http://msdn.microsoft.com/en-us/library/ms811006.aspx#code-snippet-35 unless the same statement is likely to be executed more than 3 to 5 times], in which case preparing the statement may perform better. `execDirect` accepts bound parameters.
+
+If _dataAvailable_ is true, there are output parameters whose value is now available to read using `Statement.getData()`.
 
 ### Statement.fetch(callback [err, hasData])
 
-Wraps **SQLFetch**. If successful, _hasData_ indicates whether or not the cursor is positioned on a result set.
+Wraps **SQLFetch**, used to fetch the next row of a result set. If successful, _hasData_ indicates whether or not the cursor is positioned on a result set.
+
+### Statement.moreResults(callback [err, hasData, hasParamData])
+
+Wraps **SQLMoreResults**, used to move to the next result set. If _hasData_ is true, the cursor is positioned on a result set, and `Statement.fetch()` can be used. If _hasParamData_ is true, the last result set has been read and there are output parameters available to read using `Statement.getData()`.
+
+### Statement.paramData(callback [err, param, needData, dataAvailable])
+
+Wraps **SQLParamData**, used in two circumstances.
+ * When `Statement.execute()` or `Statement.execDirect()` returns _needData_ as true, the driver is requesting data for a bound parameter of type `SQL_PARAM_INPUT_STREAM` or `SQL_PARAM_INPUT_OUTPUT_STREAM`. _param_ is a `Parameter` object representing the parameter requested, and can be passed to `Statement.putData` to send the parameter in chunks. Parameters are generally not guaranteed to be requested sequentially.
+ * When `Statement.execute()`, `Statement.execDirect()`, or `Statement.moreResults()` returns _dataAvailable_ as true, _param_ will be a `Parameter` representing the parameter whose data is available to read using `Statement.getData()`. Parameters are generally not guaranteed to become available sequentially.
 
 ### Statement.numResultCols(callback [err, count]) 
 
@@ -320,7 +329,7 @@ Wraps **SQLNumResultCols**. Calls the callback with _count_ as the number of res
 Wraps **SQLDescribeCol**. Returns information about the column at index `columnNumber`, where 1 is the first column and 0 is the bookmark column (if bookmark columns are enabled). 
  * _name_ is the name of the column.
  * _dataType_ is a numeric value representing the SQL data type of the column (e.g. `SQL_VARCHAR`, `SQL_INTEGER`, `SQL_BINARY`)
- * _columnSize_ is an integer representing the number of bytes required to store the column value. _(Note: I am not entirely sure if this will be accurate. I have heard reports of SQL Server returning 0 for `varchar(max)` columns.)_
+ * _columnSize_ is an integer representing the number of bytes required to store the column value. _(Note: This may not be accurate, e.g. SQL Server may return 0 for `varchar(max)` columns.)_
  * _decimalDigits_ is the number of digits after the decimal point supported by the column data type, for integral values.
  * _nullable_ is either _true_ (if the column value may be null), _false_ (if the column value cannot be null), or _undefined_ (if the nullability of the column is unknown).
  
@@ -337,7 +346,7 @@ in which case it is assumed that there is more data to retrieve).
 
 Successive `getData` calls will retrieve successive chunks of the column value, 
 until _result_ is `undefined` (if `getData` is called after the callback is called with `more`
-set to _true_).
+set to _false_).
 
 If _dataType_ is `SQL_BINARY`, the results (or a portion of) will be placed into _buffer_.
 _buffer_ may be a `Buffer` or a `SlowBuffer`.
@@ -362,6 +371,10 @@ If _raw_ is true, _result_ will simply be the _buffer_ which was passed in
 not be sliced; it is up to the caller to use _totalBytes_ to determine what 
 to do and to read the data in the correct format. (Note: _totalBytes_ may be 
 `undefined` if the total length of the value is unknown. In this case the buffer will be full.)
+
+### Statement.putData(parameter, callback [err, needData, dataAvailable])
+
+_TODO: Write this part_
 
 ### Statement.free() _(synchronous)_
 
