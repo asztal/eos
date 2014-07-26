@@ -302,7 +302,7 @@ use `Statement.moreResults()` to retrieve streamed output parameters.
 
 ### Statement.execDirect(sql, callback [err, needData, dataAvailable])
 
-Wraps **SQLExecDirect**, used to execute SQL without preparing. The same as `Statement.execute()`, except there is no need to call `Statement.prepare()`. Generally, this is preferable to using `prepare` then `execute`, [http://msdn.microsoft.com/en-us/library/ms811006.aspx#code-snippet-35 unless the same statement is likely to be executed more than 3 to 5 times], in which case preparing the statement may perform better. `execDirect` accepts bound parameters.
+Wraps **SQLExecDirect**, used to execute SQL without preparing. The same as `Statement.execute()`, except there is no need to call `Statement.prepare()`. Generally, this is preferable to using `prepare` then `execute`, [unless the same statement is likely to be executed more than 3 to 5 times](http://msdn.microsoft.com/en-us/library/ms811006.aspx#code-snippet-35), in which case preparing the statement may perform better. `execDirect` accepts bound parameters.
 
 If _dataAvailable_ is true, there are output parameters whose value is now available to read using `Statement.getData()`.
 
