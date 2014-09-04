@@ -77,7 +77,7 @@ namespace Eos {
                         return false;
 
                     auto chars = min<size_t>(val.length(), length / sizeof(**val));
-                    wcsncpy(reinterpret_cast<wchar_t*>(buffer), *val, chars); 
+                    wcsncpy(reinterpret_cast<wchar_t*>(buffer), reinterpret_cast<wchar_t*>(*val), chars); 
                     return chars * sizeof(**val);
                 }
 
@@ -112,7 +112,7 @@ namespace Eos {
                     time_t time = jsTime;
 
                     tm tm = *gmtime(&time);
-                    SQL_TIMESTAMP_STRUCT ts = { 0 };
+                    SQL_TIMESTAMP_STRUCT ts;
                     ts.year = tm.tm_year + 1900;
                     ts.month = tm.tm_mon + 1;
                     ts.day = tm.tm_mday;
@@ -130,7 +130,7 @@ namespace Eos {
 
             case SQL_C_CHAR:
                 if (jsValue->IsString()) {
-                    handle = JSBuffer::New(jsValue.As<String>(), NanSymbol("utf8"));
+                    handle = JSBuffer::New(jsValue.As<String>(), NanNew("utf8"));
                     if (handle.IsEmpty())
                         return false;
                     JSBuffer::Unwrap(handle, buffer, length);
@@ -141,7 +141,7 @@ namespace Eos {
 
             case SQL_C_WCHAR:
                 if (jsValue->IsString()) {
-                    handle = JSBuffer::New(jsValue.As<String>(), NanSymbol("ucs2"));
+                    handle = JSBuffer::New(jsValue.As<String>(), NanNew("ucs2"));
                     if (handle.IsEmpty())
                         return false;
                     JSBuffer::Unwrap(handle, buffer, length);

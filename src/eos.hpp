@@ -20,6 +20,7 @@
 #include <sqltypes.h>
 #include <sqlext.h>
 #include <sqlucode.h>
+#include <cstdarg>
 
 using namespace v8;
 using namespace node; 
@@ -85,7 +86,7 @@ namespace Eos {
     // The order of execution of class initialisers is not defined.
     template <class T>
     struct ClassInitializer {
-        ClassInitializer::ClassInitializer() {
+        ClassInitializer() {
             rec.Init = &T::Init;
             rec.next = 0;
             RegisterClassInitializer(rec);
@@ -96,8 +97,10 @@ namespace Eos {
 
     struct INotify {
         virtual void Notify() = 0;
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         virtual HANDLE GetEventHandle() const = 0;
         virtual HANDLE GetWaitHandle() const = 0;
+#endif
 
         virtual void Ref() = 0;
         virtual void Unref() = 0;
@@ -113,7 +116,9 @@ namespace Eos {
     void DebugWaitCounters();
 #endif
 
+#if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
     HANDLE Wait(INotify* target);
+#endif
     
     void PrintStackTrace();
     void PrintStackTrace(Handle<StackTrace>);
@@ -163,7 +168,7 @@ namespace Eos {
             
             auto holder = args.Holder();
             if (!T::Constructor()->HasInstance(holder))
-                return NanThrowError(__FUNCTION__ ": Getter called on the wrong type of object");
+                return NanThrowError("Getter called on the wrong type of object");
 
             T* obj = ObjectWrap::Unwrap<T>(holder);
 
@@ -179,7 +184,7 @@ namespace Eos {
             auto holder = args.Holder();
             if (!T::Constructor()->HasInstance(holder)) {
                 // I don't actually know what happens if one throws here
-                NanThrowError(__FUNCTION__ ": Setter called on the wrong type of object");
+                NanThrowError("Setter called on the wrong type of object");
                 return;
             } else {
                 return (ObjectWrap::Unwrap<T>(holder)->*F)(property, value, args);
