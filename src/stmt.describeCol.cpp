@@ -5,7 +5,7 @@ using namespace Eos;
 
 namespace Eos {
     struct DescribeColOperation : Operation<Statement, DescribeColOperation> {
-        DescribeColOperation::DescribeColOperation(SQLUSMALLINT columnNumber) 
+        DescribeColOperation(SQLUSMALLINT columnNumber) 
             : columnNumber_(columnNumber)
         {
             EOS_DEBUG_METHOD();
@@ -43,10 +43,13 @@ namespace Eos {
                 NanNew<Integer>(dataType_),
                 NanNew<Integer>(columnSize_),
                 NanNew<Integer>(decimalDigits_),
-                nullable_ == SQL_NULLABLE_UNKNOWN 
-                    ? NanUndefined()
-                    : (nullable_ == SQL_NULLABLE ? NanTrue() : NanFalse())
+                NanUndefined()
             };
+
+            if (nullable_ == SQL_NULLABLE)
+                argv[5] = NanTrue();
+            else if (nullable_ == SQL_NO_NULLS)
+                argv[5] = NanFalse();
             
             MakeCallback(argv);
         }
@@ -91,5 +94,5 @@ NAN_METHOD(Statement::DescribeCol) {
     return Begin<DescribeColOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, DescribeColOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, DescribeColOperation>::constructor_;
 namespace { ClassInitializer<DescribeColOperation> ci; }

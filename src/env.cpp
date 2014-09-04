@@ -82,15 +82,15 @@ NAN_METHOD(Eos::Environment::DataSources) {
     uint32_t i = 0;
     SQLRETURN ret;
 
-    wchar_t serverName[SQL_MAX_DSN_LENGTH + 1], description[256 + 1];
+    SQLWCHAR serverName[SQL_MAX_DSN_LENGTH + 1], description[256 + 1];
     SQLSMALLINT serverNameLength, descriptionLength;
 
     for(;;) {
         ret = SQLDataSourcesW(
             GetHandle(),
             direction,
-            serverName, sizeof(serverName) / sizeof(wchar_t), &serverNameLength,
-            description, sizeof(description) / sizeof(wchar_t), &descriptionLength);
+            serverName, sizeof(serverName) / sizeof(SQLWCHAR), &serverNameLength,
+            description, sizeof(description) / sizeof(SQLWCHAR), &descriptionLength);
     
         if (ret == SQL_NO_DATA)
             EosMethodReturnValue(results);
@@ -99,8 +99,8 @@ NAN_METHOD(Eos::Environment::DataSources) {
             return NanThrowError(GetLastError());
 
         auto item = NanNew<Object>();
-        item->Set(NanSymbol("server"), StringFromTChar(serverName, min(sizeof(serverName) / sizeof(wchar_t), (size_t)serverNameLength)));
-        item->Set(NanSymbol("description"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
+        item->Set(NanSymbol("server"), StringFromTChar(serverName, min(sizeof(serverName) / sizeof(SQLWCHAR), (size_t)serverNameLength)));
+        item->Set(NanSymbol("description"), StringFromTChar(description, min(sizeof(description) / sizeof(SQLWCHAR), (size_t)descriptionLength)));
         results->Set(i++, item);
 
         direction = SQL_FETCH_NEXT;
@@ -118,15 +118,15 @@ NAN_METHOD(Eos::Environment::Drivers) {
     SQLRETURN ret;
 
     const int maxDescriptionLength = 1024, maxAttributesLength = 2048;
-    wchar_t description[maxDescriptionLength + 1], driverAttributes[maxAttributesLength + 1];
+    SQLWCHAR description[maxDescriptionLength + 1], driverAttributes[maxAttributesLength + 1];
     SQLSMALLINT descriptionLength, driverAttributesLength;
 
     for(;;) {
         ret = SQLDriversW(
             GetHandle(),
             direction,
-            description, sizeof(description) / sizeof(wchar_t), &descriptionLength,
-            driverAttributes, sizeof(driverAttributes) / sizeof(wchar_t), &driverAttributesLength);
+            description, sizeof(description) / sizeof(SQLWCHAR), &descriptionLength,
+            driverAttributes, sizeof(driverAttributes) / sizeof(SQLWCHAR), &driverAttributesLength);
     
         if (ret == SQL_NO_DATA)
             EosMethodReturnValue(results);
@@ -135,18 +135,18 @@ NAN_METHOD(Eos::Environment::Drivers) {
             return NanThrowError(GetLastError());
 
         auto item = NanNew<Object>();
-        item->Set(NanSymbol("name"), StringFromTChar(description, min(sizeof(description) / sizeof(wchar_t), (size_t)descriptionLength)));
+        item->Set(NanSymbol("name"), StringFromTChar(description, min(sizeof(description) / sizeof(SQLWCHAR), (size_t)descriptionLength)));
 
         auto attributes = NanNew<Array>();
         
-        wchar_t* str = driverAttributes;
+        SQLWCHAR* str = driverAttributes;
         for (uint32_t j = 0;; j++) {
             auto attribute = StringFromTChar(str);
             if (attribute->Length() == 0)
                 break;
 
             attributes->Set(j, attribute);
-            str += wcslen(str) + 1;
+            str += sqlwcslen(str) + 1;
         }
 
         item->Set(NanSymbol("attributes"), attributes);

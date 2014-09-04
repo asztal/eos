@@ -5,6 +5,7 @@
 #include "uv.h"
 #include <ctime>
 #include <climits>
+#include <string>
 
 int EosMethodDebugger::depth = 0;
 
@@ -151,7 +152,7 @@ namespace Eos {
         // stick around too long?
         void DestroyWaiter() {
             EOS_DEBUG_METHOD_FMT(L"%i--", initCount);
-            assert(initCount >= 1);
+            Assert(initCount >= 1);
 
             initCount--;
 
@@ -351,9 +352,15 @@ namespace Eos {
 
             WStringValue file(frame->GetScriptNameOrSourceURL());
 
+	    // Work around 4-byte wchar and 2-byte SQLWCHAR on Linux
+	    std::wstring wfile;
+	    if (*file)
+	        for(int j = 0; j < file.length(); j++)
+		    wfile.push_back((*file)[j]);
+	    
             int line = frame->GetLineNumber(), column = frame->GetColumn();
 
-            fwprintf(stderr, L"  at %ls:%i:%i\n", *file ? *file : L"<unknown>", line, column);
+            fwprintf(stderr, L"  at %ls:%i:%i\n", *file ? wfile.c_str() : L"<unknown>", line, column);
         }
     }
 
@@ -404,8 +411,8 @@ namespace Eos {
         return OdbcError(NanNew<String>(message));
     }
 
-    Local<Value> OdbcError(const wchar_t* message) {
-        return OdbcError(NanNew<String>(reinterpret_cast<const uint16_t*>(message)));
+    Local<Value> OdbcError(const SQLWCHAR* message) {
+        return OdbcError(NanNew<String>(message));
     }
 
     Local<Value> OdbcError(Handle<String> message, Handle<String> state) {
@@ -459,7 +466,7 @@ namespace Eos {
         Local<Object> result;
 
         for (SQLINTEGER i = 0; i < nFields; i++) {
-            SQLWCHAR state[5 + 1] = L"", message[1024 + 1] = L"";
+	    SQLWCHAR state[5 + 1] = {0}, message[1024 + 1] = {0};
             SQLSMALLINT messageLength;
 
             auto ret = SQLGetDiagRecW(
@@ -567,14 +574,14 @@ namespace Eos {
         case SQL_C_WCHAR:
             // Subtract one character iff buffer full, due to null terminator
             assert(indicator % 2 == 0);
-            assert(indicator >= sizeof(wchar_t));
+            assert(indicator >= sizeof(SQLWCHAR));
             if (indicator == bufferLength)
-                indicator -= sizeof(wchar_t);
-            return StringFromTChar(reinterpret_cast<const wchar_t*>(buffer), indicator / 2);
+                indicator -= sizeof(SQLWCHAR);
+            return StringFromTChar(reinterpret_cast<const uint16_t*>(buffer), indicator / 2);
 
         case SQL_C_TYPE_TIMESTAMP: {
             auto& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
-            tm tm = { 0 };
+            tm tm = ::tm();
             tm.tm_year = ts.year - 1900;
             tm.tm_mon = ts.month - 1;
             tm.tm_mday = ts.day;
@@ -621,7 +628,7 @@ namespace Eos {
     }
 
     Handle<Object> JSBuffer::New(size_t length) {
-        assert(length <= INT32_MAX);
+        assert(length <= INT_MAX);
 
         Handle<Value> argv[] = { NanNew<Integer>(length) };
         return Constructor()->NewInstance(1, argv);

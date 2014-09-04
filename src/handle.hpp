@@ -82,7 +82,7 @@ namespace Eos {
                 return NanThrowError("An operation is already in progress on this handle.");
             }
 
-            auto op = TOp::Construct(argv).As<Object>();
+            auto op = TOp::Construct(argv).template As<Object>();
             if (op.IsEmpty())
                 NanReturnUndefined(); // Probably the constructor threw
 
@@ -126,7 +126,7 @@ namespace Eos {
         SQLRETURN FreeHandle();
 
     private:
-        EosHandle::EosHandle(const EosHandle& other); // = delete;
+        EosHandle(const EosHandle& other); // = delete;
         
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
         HANDLE hEvent_, hWait_;

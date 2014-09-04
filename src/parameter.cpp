@@ -195,7 +195,10 @@ NAN_SETTER(Parameter::SetValue) {
     }
 
     if (bufferObject_.IsEmpty()) {
-        if (!AllocateBoundInputParameter(cType_, value, buffer_, length_, NanNew(bufferObject_))) {
+	Local<Object> buf = NanNew(bufferObject_);
+        if (AllocateBoundInputParameter(cType_, value, buffer_, length_, buf)) {
+	    NanAssignPersistent(bufferObject_, buf);
+	} else {
             NanThrowError("Cannot allocate buffer for parameter data");
             return;
         }

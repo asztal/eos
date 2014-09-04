@@ -34,5 +34,5 @@ NAN_METHOD(Connection::Disconnect) {
     return Begin<DisconnectOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Connection, DisconnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, DisconnectOperation>::constructor_;
 namespace { ClassInitializer<DisconnectOperation> ci; }

@@ -7,7 +7,7 @@ using namespace Buffers;
 
 namespace Eos {
     struct PutDataOperation : Operation<Statement, PutDataOperation> {
-        PutDataOperation::PutDataOperation(Parameter* param, Handle<Object> bufferObject)
+        PutDataOperation(Parameter* param, Handle<Object> bufferObject)
             : parameter_(param)
         {
             EOS_DEBUG_METHOD();
@@ -85,5 +85,5 @@ NAN_METHOD(Statement::PutData) {
     return Begin<PutDataOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, PutDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, PutDataOperation>::constructor_;
 namespace { ClassInitializer<PutDataOperation> ci; }

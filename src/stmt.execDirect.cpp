@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct ExecDirectOperation : Operation<Statement, ExecDirectOperation> {
-        ExecDirectOperation::ExecDirectOperation(Handle<Value> sql)
+        ExecDirectOperation(Handle<Value> sql)
             : sql_(sql)
         {
             EOS_DEBUG_METHOD_FMT(L"execDirect: %ls\n", *sql_);
@@ -67,5 +67,5 @@ NAN_METHOD(Statement::ExecDirect) {
     return Begin<ExecDirectOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, ExecDirectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, ExecDirectOperation>::constructor_;
 namespace { ClassInitializer<ExecDirectOperation> ci; }

@@ -53,7 +53,7 @@ namespace Eos {
                 it != activeOperations_.end();
                 ++it)
             {
-                EOS_DEBUG(L"\n\n%hs operation started at:\n", (*it)->Name());
+                EOS_DEBUG(L"\n\n%hs operation started at:\n", (*it)->GetName());
                 PrintStackTrace((*it)->GetStackTrace());
             }
 
@@ -81,8 +81,9 @@ namespace Eos {
         }
 #endif
 
+        virtual const char* GetName() const = 0;
+
     protected:
-        virtual const char* Name() const = 0;
 
         virtual SQLRETURN CallOverride() = 0;
         virtual void CallbackOverride(SQLRETURN ret) = 0;
@@ -208,7 +209,7 @@ namespace Eos {
                 return NanThrowError("Too few arguments");
 
             if (!args.IsConstructCall()) {
-                EOS_DEBUG(L"Warning: %ls called, but args.IsConstructCall() is false\n", __FUNCTIONW__);
+                EOS_DEBUG(L"Warning: %hs called, but args.IsConstructCall() is false\n", __FUNCTION__);
 
                 DEBUG_ONLY(PrintStackTrace());
 
@@ -266,7 +267,7 @@ namespace Eos {
             // using. If the driver does not support asynchronous operations, 
             // it will return SQL_ERROR with SQLSTATE S1118.
             if (result_ == SQL_ERROR) {
-                wchar_t state[6];
+	        SQLWCHAR state[6];
 
                 // The documentation doesn't explicitly say that you can 
                 // pass nullptr instead of pointers to these.
@@ -281,7 +282,7 @@ namespace Eos {
                     &nativeError,
                     nullptr, 0, &messageLength);
 
-                if (diagRet == SQL_SUCCESS && wcscmp(state, L"S1118") == 0) {
+                if (diagRet == SQL_SUCCESS && sqlwcscmp(state, "S1118") == 0) {
                     Owner()->DisableAsynchronousNotifications();
                     
                     // Now try again. If it fails again for the same reason,
@@ -334,7 +335,7 @@ namespace Eos {
         }
 
     protected:
-        const char* Name() const {
+        const char* GetName() const {
             return TOp::Name();
         }
         

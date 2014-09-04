@@ -5,17 +5,23 @@ using namespace Eos;
 namespace Eos {
     struct ConnectOperation : Operation<Connection, ConnectOperation> {
         ConnectOperation(
-            wchar_t* serverName, SQLSMALLINT serverNameLength,
-            wchar_t* userName, SQLSMALLINT userNameLength,
-            wchar_t* password, SQLSMALLINT passwordLength)
+            SQLWCHAR* serverName, SQLSMALLINT serverNameLength,
+            SQLWCHAR* userName, SQLSMALLINT userNameLength,
+            SQLWCHAR* password, SQLSMALLINT passwordLength)
             : serverName_(serverName), serverNameLength_(serverNameLength)
             , userName_(userName), userNameLength_(userNameLength)
             , password_(password), passwordLength_(passwordLength)
         {
-            EOS_DEBUG_METHOD_FMT(L"%ls, %ls, %ls", 
-                serverName ? serverName : L"<nullptr>", 
-                userName ? userName : L"<nullptr>", 
-                password ? password : L"<nullptr>");
+#if defined(DEBUG)
+	    std::wstring 
+		sServerName = sqlstring(serverName),
+		sUserName = sqlstring(userName),
+		sPassword = sqlstring(password);
+	    EOS_DEBUG_METHOD_FMT(L"%ls, %ls, %ls", 
+				 serverName ? sServerName.c_str() : L"<nullptr>", 
+				 userName ? sUserName.c_str() : L"<nullptr>", 
+				 password ? sPassword.c_str() : L"<nullptr>");
+#endif
         }
 
         ~ConnectOperation() {
@@ -32,7 +38,7 @@ namespace Eos {
             if (args.Length() < 2)
                 return NanError("Too few arguments");
 
-            wchar_t* str[3] = { nullptr, nullptr, nullptr };
+            SQLWCHAR* str[3] = { nullptr, nullptr, nullptr };
             SQLSMALLINT len[3] = { 0, 0, 0 };
 
             for (int i = 0; i < 3; i++) {
@@ -54,9 +60,9 @@ namespace Eos {
 
                 WStringValue sv(args[i+1]);
                 len[i] = sv.length();
-                str[i] = new (nothrow) wchar_t[len[i]];
+                str[i] = new (nothrow) SQLWCHAR[len[i]];
                 if (str[i])
-                    wcsncpy(str[i], *sv, len[i]);
+		    sqlwcsncpy(str[i], *sv, len[i]);
                 else
                     oom = true;
             }
@@ -92,7 +98,7 @@ namespace Eos {
         // TODO When do these get deleted?
 
     protected:
-        wchar_t *serverName_, *userName_, *password_;
+        SQLWCHAR *serverName_, *userName_, *password_;
         SQLSMALLINT serverNameLength_, userNameLength_, passwordLength_;
     };
 }
@@ -115,5 +121,5 @@ NAN_METHOD(Connection::Connect) {
     }
 }
 
-Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
 namespace { ClassInitializer<ConnectOperation> ci; }

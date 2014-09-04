@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct PrepareOperation : Operation<Statement, PrepareOperation> {
-        PrepareOperation::PrepareOperation(Handle<Value> sql)
+        PrepareOperation(Handle<Value> sql)
             : sql_(sql)
         {
             EOS_DEBUG_METHOD_FMT(L"sql = %ls", *sql_);
@@ -50,5 +50,5 @@ NAN_METHOD(Statement::Prepare) {
     return Begin<PrepareOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, PrepareOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, PrepareOperation>::constructor_;
 namespace { ClassInitializer<PrepareOperation> ci; }

@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct MoreResultsOperation : Operation<Statement, MoreResultsOperation> {
-        MoreResultsOperation::MoreResultsOperation() {
+        MoreResultsOperation() {
             EOS_DEBUG_METHOD();
         }
 
@@ -58,5 +58,5 @@ NAN_METHOD(Statement::MoreResults) {
     return Begin<MoreResultsOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, MoreResultsOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, MoreResultsOperation>::constructor_;
 namespace { ClassInitializer<MoreResultsOperation> ci; }

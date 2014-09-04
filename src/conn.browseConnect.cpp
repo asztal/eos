@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct BrowseConnectOperation : Operation<Connection, BrowseConnectOperation> {
-        BrowseConnectOperation::BrowseConnectOperation(Handle<Value> connectionString)
+        BrowseConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
         {
             EOS_DEBUG_METHOD();
@@ -59,7 +59,7 @@ namespace Eos {
     protected:
         WStringValue connectionString_;
         enum { outConnectionStringBufferLength = 4096 };
-        wchar_t outConnectionString_[outConnectionStringBufferLength + 1];
+        SQLWCHAR outConnectionString_[outConnectionStringBufferLength + 1];
         SQLSMALLINT outConnectionStringLength_;
     };
 }
@@ -74,5 +74,5 @@ NAN_METHOD(Connection::BrowseConnect) {
     return Begin<BrowseConnectOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_;
 namespace { ClassInitializer<BrowseConnectOperation> ci; }

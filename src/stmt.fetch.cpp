@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct FetchOperation : Operation<Statement, FetchOperation> {
-        FetchOperation::FetchOperation() {
+        FetchOperation() {
             EOS_DEBUG_METHOD();
         }
 
@@ -57,5 +57,5 @@ NAN_METHOD(Statement::Fetch) {
     return Begin<FetchOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, FetchOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, FetchOperation>::constructor_;
 namespace { ClassInitializer<FetchOperation> ci; }

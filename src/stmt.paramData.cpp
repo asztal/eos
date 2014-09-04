@@ -5,7 +5,7 @@ using namespace Eos;
 
 namespace Eos {
     struct ParamDataOperation : Operation<Statement, ParamDataOperation> {
-        ParamDataOperation::ParamDataOperation() 
+        ParamDataOperation() 
             : parameter_(nullptr)
         {
             EOS_DEBUG_METHOD();
@@ -67,5 +67,5 @@ NAN_METHOD(Statement::ParamData) {
     return Begin<ParamDataOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, ParamDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, ParamDataOperation>::constructor_;
 namespace { ClassInitializer<ParamDataOperation> ci; }

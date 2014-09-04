@@ -4,7 +4,7 @@ using namespace Eos;
 
 namespace Eos {
     struct DriverConnectOperation : Operation<Connection, DriverConnectOperation> {
-        DriverConnectOperation::DriverConnectOperation(Handle<Value> connectionString)
+        DriverConnectOperation(Handle<Value> connectionString)
             : connectionString_(connectionString)
         {
             EOS_DEBUG_METHOD_FMT(L"%ls", *connectionString_);
@@ -54,5 +54,5 @@ NAN_METHOD(Connection::DriverConnect) {
     return Begin<DriverConnectOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Connection, DriverConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, DriverConnectOperation>::constructor_;
 namespace { ClassInitializer<DriverConnectOperation> ci; }

@@ -77,7 +77,7 @@ namespace Eos {
                         return false;
 
                     auto chars = min<size_t>(val.length(), length / sizeof(**val));
-                    wcsncpy(reinterpret_cast<wchar_t*>(buffer), reinterpret_cast<wchar_t*>(*val), chars); 
+		    memcpy(buffer, *val, chars * sizeof(SQLWCHAR));
                     return chars * sizeof(**val);
                 }
 

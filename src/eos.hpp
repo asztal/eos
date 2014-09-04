@@ -16,11 +16,20 @@
 
 #include <new>
 
+#define ODBCVER 0x0381
+
 #include <sql.h>
 #include <sqltypes.h>
 #include <sqlext.h>
 #include <sqlucode.h>
 #include <cstdarg>
+
+// unixODBC doesn't define this
+#if !defined(SQL_PARAM_DATA_AVAILABLE)
+#define SQL_PARAM_DATA_AVAILABLE 101
+#endif 
+
+#include "strings.hpp"
 
 using namespace v8;
 using namespace node; 
@@ -31,9 +40,10 @@ using std::nothrow;
 #endif
 
 struct EosMethodDebugger {
-    EosMethodDebugger(const wchar_t* fmt, ...) {
+    EosMethodDebugger(const char* fn, const wchar_t* fmt, ...) {
         for (int i = 0; i < depth; i++)
             wprintf(L".");
+        puts(fn);
         va_list argp;
         va_start(argp, fmt);
         vwprintf(fmt, argp);
@@ -57,8 +67,8 @@ private:
 // to avoid using %s at all.
 // See http://en.chys.info/2009/06/wprintfs/ for more information.
 #define EOS_DEBUG(...) wprintf(__VA_ARGS__)
-#define EOS_DEBUG_METHOD(...) EosMethodDebugger __md__(__FUNCTIONW__ L"()\n"); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
-#define EOS_DEBUG_METHOD_FMT(fmt, ...) EosMethodDebugger __md__(__FUNCTIONW__ L"(" fmt L")\n", __VA_ARGS__); //wprintf(L" -> %ls()\n", __FUNCTIONW__)
+#define EOS_DEBUG_METHOD(...) EosMethodDebugger __md__(__FUNCTION__, L"()\n"); //wprintf(L" -> %hs()\n", __FUNCTION__)
+#define EOS_DEBUG_METHOD_FMT(fmt, ...) EosMethodDebugger __md__(__FUNCTION__, L"(" fmt L")\n", __VA_ARGS__); //wprintf(L" -> %hs()\n", __FUNCTION__)
 #else
 // Don't even define this in release builds!
 // Should never be there.

@@ -6,7 +6,7 @@ using namespace Eos;
 
 namespace Eos {
     struct GetDataOperation : Operation<Statement, GetDataOperation> {
-        GetDataOperation::GetDataOperation
+        GetDataOperation
             ( SQLUSMALLINT columnNumber
             , SQLSMALLINT sqlType
             , SQLPOINTER buffer
@@ -155,10 +155,8 @@ namespace Eos {
         SQLLEN bufferLength_, totalLength_;
 
         union {
-            long l;
             bool b;
             double d;
-            tm tm;
             SQL_TIMESTAMP_STRUCT ts;
         } rawValues_;
 
@@ -176,5 +174,5 @@ NAN_METHOD(Statement::GetData) {
     return Begin<GetDataOperation>(argv);
 }
 
-Persistent<FunctionTemplate> Operation<Statement, GetDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, GetDataOperation>::constructor_;
 namespace { ClassInitializer<GetDataOperation> ci; }
