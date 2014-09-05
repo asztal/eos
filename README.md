@@ -372,9 +372,57 @@ not be sliced; it is up to the caller to use _totalBytes_ to determine what
 to do and to read the data in the correct format. (Note: _totalBytes_ may be 
 `undefined` if the total length of the value is unknown. In this case the buffer will be full.)
 
+### Statement.bindParameter(index, kind, type, columnSize, decimalDigits, [value], [buffer]) _(synchronous)_
+
+Wraps **SQLBindParameter**. This function binds a parameter and returns a `Parameter` object.
+
+ * `index` specifies which parameter number to bind, starting from 1.
+ * `kind` specifies whether the parameter is an input parameter, output parameter, or both. In fact
+ it is more complex than this, which will be explained below.
+ * `type` refers to the SQL type of the parameter (e.g. `SQL_VARCHAR`, `SQL_INTEGER`, `SQL_VARBINARY`)
+ * `columnSize` depends on the type of parameter. For variable length types (string, buffer) it refers
+ to the length of the data. For non-integral numbers, it refers to the precision. 
+ * `decimalDigits` usually refers to the number of decimal digits for fractional seconds in date/time
+ data types, however it can also refer to the _scale_ of `SQL_NUMERIC` or `SQL_DECIMAL` data types.
+ * `value`, if passed, binds the parameter with the specified value. If `null` is passed, the parameter's
+ value is null, but if `undefined` is passed, it will mark the parameter as a Data At Execution parameter.
+ * `buffer`, if passed, will specify the `Buffer` used to store the parameter's data. If none is passed, 
+ a buffer will automatically be allocated when the value is set (either by passed to `bindParameter`, or
+ later calling `Parameter.set`.
+
+#### Kinds of parameters
+
+Parameters can be input parameters, output parameters, or both. Output parameters can be either streamed 
+(the value is retrieved in parts using `getData`) or bound (the value is automatically set when the statement
+is executed), and similarly input parameters can be streamed (sent in parts with `putData`, known as Data At 
+Execution) or bound (sent as part of `execute` or `execDirect`). To specify a Data At Execution parameter, 
+pass `undefined` for the `value` argument of `bindParameter`.
+
+|`kind`|value|Input|Output|
+|------|-----|-----|------|
+|`SQL_PARAM_INPUT`|`undefined`|DAE||
+|`SQL_PARAM_INPUT`|a value|Bound||
+|`SQL_PARAM_INPUT_OUTPUT`|`undefined`|DAE|Bound|
+|`SQL_PARAM_INPUT_OUTPUT`|a value|Bound|Bound|
+|`SQL_PARAM_INPUT_OUTPUT_STREAM`|`undefined`|DAE|Streamed|
+|`SQL_PARAM_INPUT_OUTPUT_STREAM`|a value|Bound|Streamed|
+|`SQL_PARAM_OUTPUT`|||Bound|
+|`SQL_PARAM_OUTPUT_STREAM`|||Streamed|
+
 ### Statement.putData(parameter, callback [err, needData, dataAvailable])
 
-_TODO: Write this part_
+Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data at *execution). 
+`parameter` should the `Parameter` object returned by `paramData` when another ODBC call returns
+`needData` as true.
+
+When writing binary columns, simply fill `parameter.buffer` with the data to send before calling
+`putData` (e.g. by calling `fs.read` and passing it the buffer).
+
+*Known limitation*: due to issue #1 it is currently not possible to send only part of the
+parameter's buffer on the final `putData` call.
+
+*TODO*: Figure out the precise semantics when **SQLPutData** returns `SQL_NEED_DATA` and when it doesn't,
+and if it's OK to send more data even if the server doesn't ask for it (I think it's OK).
 
 ### Statement.free() _(synchronous)_
 
