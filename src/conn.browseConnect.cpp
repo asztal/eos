@@ -74,5 +74,5 @@ NAN_METHOD(Connection::BrowseConnect) {
     return Begin<BrowseConnectOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, BrowseConnectOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<BrowseConnectOperation> ci; }

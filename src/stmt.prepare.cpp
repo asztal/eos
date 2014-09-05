@@ -50,5 +50,5 @@ NAN_METHOD(Statement::Prepare) {
     return Begin<PrepareOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, PrepareOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, PrepareOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<PrepareOperation> ci; }

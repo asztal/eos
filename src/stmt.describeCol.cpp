@@ -94,5 +94,5 @@ NAN_METHOD(Statement::DescribeCol) {
     return Begin<DescribeColOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, DescribeColOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, DescribeColOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<DescribeColOperation> ci; }

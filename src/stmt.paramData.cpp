@@ -67,5 +67,5 @@ NAN_METHOD(Statement::ParamData) {
     return Begin<ParamDataOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, ParamDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, ParamDataOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<ParamDataOperation> ci; }

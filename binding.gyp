@@ -27,7 +27,7 @@
           'src/stmt.putData.cpp'
       ],
       'defines' : [
-        'UNICODE', 'DEBUG'
+        'UNICODE'
       ],
       'include_dirs': [
         "<!(node -e \"require('nan')\")"

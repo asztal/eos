@@ -174,5 +174,5 @@ NAN_METHOD(Statement::GetData) {
     return Begin<GetDataOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, GetDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, GetDataOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<GetDataOperation> ci; }

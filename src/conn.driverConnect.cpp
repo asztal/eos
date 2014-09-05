@@ -54,5 +54,5 @@ NAN_METHOD(Connection::DriverConnect) {
     return Begin<DriverConnectOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Connection, DriverConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, DriverConnectOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<DriverConnectOperation> ci; }

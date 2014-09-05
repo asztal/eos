@@ -85,5 +85,5 @@ NAN_METHOD(Statement::PutData) {
     return Begin<PutDataOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, PutDataOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, PutDataOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<PutDataOperation> ci; }

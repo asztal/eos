@@ -61,5 +61,5 @@ NAN_METHOD(Statement::NumResultCols) {
     return Begin<NumResultColsOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, NumResultColsOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Eos::Operation<Statement, NumResultColsOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<NumResultColsOperation> ci; }

@@ -67,5 +67,5 @@ NAN_METHOD(Statement::ExecDirect) {
     return Begin<ExecDirectOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, ExecDirectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, ExecDirectOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<ExecDirectOperation> ci; }

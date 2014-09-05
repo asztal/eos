@@ -556,13 +556,13 @@ namespace Eos {
         
         switch(cType) {
         case SQL_C_SLONG:
-            return NanNew<Number>(*reinterpret_cast<long*>(buffer));
+            return NanNew<Number>(*reinterpret_cast<SQLINTEGER*>(buffer));
 
         case SQL_C_DOUBLE:
-            return NanNew<Number>(*reinterpret_cast<double*>(buffer));
+            return NanNew<Number>(*reinterpret_cast<SQLDOUBLE*>(buffer));
         
         case SQL_C_BIT:
-            return *reinterpret_cast<bool*>(buffer) ? NanTrue() : NanFalse();
+            return *reinterpret_cast<SQLCHAR*>(buffer) ? NanTrue() : NanFalse();
 
         case SQL_C_CHAR:
             // Subtract one character iff buffer full, due to null terminator

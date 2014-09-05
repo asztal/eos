@@ -57,5 +57,5 @@ NAN_METHOD(Statement::Fetch) {
     return Begin<FetchOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, FetchOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, FetchOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<FetchOperation> ci; }

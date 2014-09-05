@@ -121,5 +121,5 @@ NAN_METHOD(Connection::Connect) {
     }
 }
 
-template<> Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Connection, ConnectOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<ConnectOperation> ci; }

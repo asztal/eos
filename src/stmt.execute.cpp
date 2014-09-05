@@ -57,5 +57,5 @@ NAN_METHOD(Statement::Execute) {
     return Begin<ExecuteOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, ExecuteOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, ExecuteOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<ExecuteOperation> ci; }

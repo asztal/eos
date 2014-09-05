@@ -58,5 +58,5 @@ NAN_METHOD(Statement::MoreResults) {
     return Begin<MoreResultsOperation>(argv);
 }
 
-template<> Persistent<FunctionTemplate> Operation<Statement, MoreResultsOperation>::constructor_;
+template<> Persistent<FunctionTemplate> Operation<Statement, MoreResultsOperation>::constructor_ = Persistent<FunctionTemplate>();
 namespace { ClassInitializer<MoreResultsOperation> ci; }
