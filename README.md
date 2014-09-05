@@ -99,6 +99,38 @@ ODBC errors look something like this:
 
 ODBC can return multiple errors for a single operation. In such cases, the first error is the main error returned, however the full list of errors is returned in the `errors` property.
 
+## Data types
+
+The mapping between SQL data types and JavaScript data types is fairly simple. This table will help
+you understand what SQL type to pass to `getData` to get back the correct data type, and what to pass to
+`bindParameter` to send/receive parameters.
+
+ * The _SQL data type_ column refers to the type you pass to `getData` or `bindParameter`.
+ * The _C type_ column is for informational purposes and specifies how the data is stored in the
+parameter/column's `buffer` and `bytesInBuffer` properties. The format of the buffer will be 
+driver and architecture-dependent, however.
+ * The _SQL→JS_ column refers to the default conversion when returning results from
+`getData` (which you can work around by accessing the parameter's buffer directly) or receiving 
+the values of output parameters.
+ * The _JS→SQL_ column specifies how JavaScript values are converted for storing into the
+parameter buffer _(see `FillInputBuffer` in buffer.cpp)_.
+
+SQL data type | C type | SQL→JS | JS→SQL
+--------------|--------|----------------------|---------------
+`SQL_INTEGER`, `SQL_SMALLINT`, `SQL_TINYINT` | `SQL_C_SLONG` | `Number` | Coerced to Int32
+`SQL_NUMERIC`, `SQL_DECIMAL`, `SQL_BIGINT`, `SQL_FLOAT`, `SQL_REAL`, `SQL_DOUBLE` | `SQL_C_DOUBLE` | `Number` | Coerced to Number
+`SQL_DATETIME`, `SQL_TIMESTAMP` | `SQL_C_TYPE_TIMESTAMP` | `Date` | Fails if the value is not a date (TODO: specify: in what way does it fail and how is null handled?)
+`SQL_BIT` | `SQL_C_BIT` | `true`/`false` | Coerced to boolean
+`SQL_BINARY`, `SQL_VARBINARY`, `SQL_LONGVARBINARY`¹ | `SQL_C_BINARY` | `Buffer` | None necessary
+`SQL_CHAR`, `SQL_VARCHAR`, `SQL_LONGVARCHAR`¹ | `SQL_C_WCHAR` | `String` | Coerced to a string and encoded in UTF-8
+`SQL_WCHAR`, `SQL_WVARCHAR`, `SQL_WLONGVARCHAR`¹, everything else | `SQL_C_WCHAR` | `String` | Coerced to a string and encoded in UTF-16
+
+¹ MSSQL has limitations binding `SQL_[W]LONGVARCHAR` and `SQL_LONGVARBINARY` columns, 
+especially with data-at-execution parameters. It is advised to use `SQL_[W]VARCHAR` and 
+`SQL_VARBINARY` instead, with a `columnSize` of zero, because the long data types map
+to the deprecated `[n]text` and `image` data types. (Note: FreeTDS does not support zero
+column sizes for `SQL_[W]VARCHAR` and `SQL_VARBINARY`, unfortunately.)
+
 ## Environment
 
 An `Environment` is a wrapper around a `SQLHENV` which is used to enumerate drivers and data 
@@ -418,8 +450,8 @@ Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data
 When writing binary columns, simply fill `parameter.buffer` with the data to send before calling
 `putData` (e.g. by calling `fs.read` and passing it the buffer).
 
-*Known limitation*: due to issue #1 it is currently not possible to send only part of the
-parameter's buffer on the final `putData` call.
+*Known limitation*: due to [issue #3](//github.com/lee-houghton/eos/issues/3) it is currently not 
+possible to send only part of the parameter's buffer on the final `putData` call.
 
 *TODO*: Figure out the precise semantics when **SQLPutData** returns `SQL_NEED_DATA` and when it doesn't,
 and if it's OK to send more data even if the server doesn't ask for it (I think it's OK).
