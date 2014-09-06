@@ -130,7 +130,7 @@ namespace Eos {
 
             case SQL_C_CHAR:
                 if (jsValue->IsString()) {
-                    handle = JSBuffer::New(jsValue.As<String>(), NanNew("utf8"));
+                    handle = JSBuffer::New(jsValue.As<String>(), NanNew<String>("utf8"));
                     if (handle.IsEmpty())
                         return false;
                     JSBuffer::Unwrap(handle, buffer, length);
@@ -141,7 +141,7 @@ namespace Eos {
 
             case SQL_C_WCHAR:
                 if (jsValue->IsString()) {
-                    handle = JSBuffer::New(jsValue.As<String>(), NanNew("ucs2"));
+                    handle = JSBuffer::New(jsValue.As<String>(), NanNew<String>("ucs2"));
                     if (handle.IsEmpty())
                         return false;
                     JSBuffer::Unwrap(handle, buffer, length);

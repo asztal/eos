@@ -412,7 +412,7 @@ namespace Eos {
     }
 
     Local<Value> OdbcError(const SQLWCHAR* message) {
-        return OdbcError(NanNew<String>(message));
+        return OdbcError(NanNew<String>(reinterpret_cast<const uint16_t*>(message)));
     }
 
     Local<Value> OdbcError(Handle<String> message, Handle<String> state) {
@@ -577,7 +577,7 @@ namespace Eos {
             assert(indicator >= sizeof(SQLWCHAR));
             if (indicator == bufferLength)
                 indicator -= sizeof(SQLWCHAR);
-            return StringFromTChar(reinterpret_cast<const uint16_t*>(buffer), indicator / 2);
+            return StringFromTChar(reinterpret_cast<const SQLWCHAR*>(buffer), indicator / 2);
 
         case SQL_C_TYPE_TIMESTAMP: {
             auto& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
