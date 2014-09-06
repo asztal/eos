@@ -17,8 +17,8 @@ namespace Eos {
 
         SQLLEN GetDesiredBufferLength(SQLSMALLINT cType) {
             switch(cType) {
-            case SQL_C_SLONG: return sizeof(long);
-            case SQL_C_DOUBLE: return sizeof(double);
+            case SQL_C_SLONG: return sizeof(SQLINTEGER);
+            case SQL_C_DOUBLE: return sizeof(SQLDOUBLE);
             case SQL_C_BIT: return sizeof(bool);
             case SQL_C_TYPE_TIMESTAMP: return sizeof(SQL_TIMESTAMP_STRUCT);
             default: return 0;
@@ -28,12 +28,12 @@ namespace Eos {
         SQLLEN FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
             switch(cType) {
             case SQL_C_SLONG:
-                *reinterpret_cast<long*>(buffer) = jsValue->Int32Value();
-                return sizeof(long);
+                *reinterpret_cast<SQLINTEGER*>(buffer) = jsValue->IntegerValue();
+                return sizeof(SQLINTEGER);
 
             case SQL_C_DOUBLE:
-                *reinterpret_cast<double*>(buffer) = jsValue->NumberValue();
-                return sizeof(double);
+                *reinterpret_cast<SQLDOUBLE*>(buffer) = jsValue->NumberValue();
+                return sizeof(SQLDOUBLE);
 
             case SQL_C_BIT:
                 *reinterpret_cast<bool*>(buffer) = jsValue->BooleanValue();
@@ -77,7 +77,7 @@ namespace Eos {
                         return false;
 
                     auto chars = min<size_t>(val.length(), length / sizeof(**val));
-		    memcpy(buffer, *val, chars * sizeof(SQLWCHAR));
+		            memcpy(buffer, *val, chars * sizeof(SQLWCHAR));
                     return chars * sizeof(**val);
                 }
 
@@ -89,15 +89,15 @@ namespace Eos {
         bool AllocateBoundInputParameter(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER& buffer, SQLLEN& length, Handle<Object>& handle) {
             switch (cType) {
             case SQL_C_SLONG:
-                if(!AllocatePrimitive<long>(jsValue->Int32Value(), buffer, handle))
+                if(!AllocatePrimitive<SQLINTEGER>(static_cast<SQLINTEGER>(jsValue->IntegerValue()), buffer, handle))
                     return false;
-                length = sizeof(long);
+                length = sizeof(SQLINTEGER);
                 return true;
 
             case SQL_C_DOUBLE:
-                if(!AllocatePrimitive<double>(jsValue->NumberValue(), buffer, handle))
+                if(!AllocatePrimitive<SQLDOUBLE>(jsValue->NumberValue(), buffer, handle))
                     return false;
-                length = sizeof(double);
+                length = sizeof(SQLDOUBLE);
                 return true;
 
             case SQL_C_BIT:
