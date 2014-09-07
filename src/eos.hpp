@@ -43,7 +43,7 @@ struct EosMethodDebugger {
     EosMethodDebugger(const char* fn, const wchar_t* fmt, ...) {
         for (int i = 0; i < depth; i++)
             wprintf(L".");
-        puts(fn);
+        printf("%s", fn);
         va_list argp;
         va_start(argp, fmt);
         vwprintf(fmt, argp);
