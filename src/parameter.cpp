@@ -14,9 +14,9 @@ void Parameter::Init(Handle<Object> exports) {
     auto sig0 = NanNew<Signature>(Constructor(), 0, nullptr);
 
     EOS_SET_ACCESSOR(Constructor(), "value", Parameter, GetValue, SetValue);
-    EOS_SET_GETTER(Constructor(), "buffer", Parameter, GetBuffer);
+    EOS_SET_ACCESSOR(Constructor(), "bytesInBuffer", Parameter, GetBytesInBuffer, SetBytesInBuffer);
+    EOS_SET_ACCESSOR(Constructor(), "buffer", Parameter, GetBuffer, SetBuffer);
     EOS_SET_GETTER(Constructor(), "bufferLength", Parameter, GetBufferLength);
-    EOS_SET_GETTER(Constructor(), "bytesInBuffer", Parameter, GetBytesInBuffer);
     EOS_SET_GETTER(Constructor(), "index", Parameter, GetIndex);
     EOS_SET_GETTER(Constructor(), "kind", Parameter, GetKind);
 }
@@ -48,6 +48,28 @@ NAN_GETTER(Parameter::GetBuffer) const {
     EosMethodReturnValue(NanNew(bufferObject_));
 }
 
+NAN_SETTER(Parameter::SetBuffer) {
+    if (inOutType_ != SQL_PARAM_INPUT) {
+        NanThrowError("Cannot set buffer for input/output or output parameters");
+        return;
+    }
+
+    if (cType_ != SQL_C_CHAR && cType_ != SQL_C_BINARY && cType_ != SQL_C_WCHAR) {
+        NanThrowError("Can only set buffer for binary or string parameters");
+        return;
+    }
+    
+    if (!JSBuffer::HasInstance(value)) {
+        NanThrowError("Specified buffer must be a node Buffer object");
+        return;
+    }
+        
+    if (auto msg = JSBuffer::Unwrap(value.As<Object>(), buffer_, length_)) {
+        NanThrowError(msg);
+        return;
+    }
+}
+
 NAN_GETTER(Parameter::GetBufferLength) const {
     EosMethodReturnValue(NanNew<Integer>(length_));
 }
@@ -60,6 +82,31 @@ NAN_GETTER(Parameter::GetBytesInBuffer) const {
         NanReturnNull();
 
     EosMethodReturnValue(NanNew<Integer>(BytesInBuffer()));
+}
+
+NAN_SETTER(Parameter::SetBytesInBuffer) {
+    if (inOutType_ != SQL_PARAM_INPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT && inOutType_ != SQL_PARAM_INPUT_OUTPUT_STREAM) {
+        NanThrowError("Cannot set bytesInBuffer for output parameters");
+        return;
+    }
+
+    if (cType_ != SQL_C_CHAR && cType_ != SQL_C_WCHAR && cType_ != SQL_C_BINARY) {
+        NanThrowError("Cannot set bytesInBuffer for output parameters");
+        return;
+    }
+
+    if (indicator_ == SQL_DATA_AT_EXEC) {
+        NanThrowError("Cannot set bytesInBuffer because there is no buffer");
+        return;
+    }
+
+    auto bytes = value->IntegerValue();
+    if (bytes < 0 || bytes > length_) {
+        NanThrowError("bytesInBuffer must be non-negative and less than or equal to the buffer length");
+        return;
+    }
+
+    indicator_ = bytes;
 }
 
 NAN_GETTER(Parameter::GetIndex) const {
@@ -103,7 +150,6 @@ const char* Parameter::Marshal(
     SQLPOINTER buffer = nullptr;
     SQLLEN length = 0;
     SQLLEN indicator = 0;
-    bool streamedInput = false, streamedOutput = false;
 
     if (!handle.IsEmpty())
         if(auto msg = JSBuffer::Unwrap(handle, buffer, length))
@@ -134,6 +180,9 @@ const char* Parameter::Marshal(
                 return "Cannot place parameter value into buffer";
         }
     } else if (inOutType == SQL_PARAM_OUTPUT || inOutType == SQL_PARAM_INPUT_OUTPUT) {
+        if (inOutType == SQL_PARAM_INPUT_OUTPUT)
+            return "Cannot bind this type of parameter with data-at-execution yet: see https://github.com/lee-houghton/eos/issues/5";
+
         // It's an output parameter, in a bound buffer, or a DAE input parameter with a
         // bound output buffer.
         if (handle.IsEmpty()) {
