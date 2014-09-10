@@ -339,7 +339,7 @@ namespace Eos {
 
     void PrintStackTrace() {
         PrintStackTrace(
-            IF_NODE_12( StackTrace::CurrentStackTrace(nan_isolate, 10)
+            IF_NODE_12( StackTrace::CurrentStackTrace(v8::Isolate::GetCurrent(), 10)
                       , StackTrace::CurrentStackTrace(10)));
     }
 
