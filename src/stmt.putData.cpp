@@ -29,7 +29,7 @@ namespace Eos {
             auto param = Parameter::Unwrap(args[1].As<Object>());
             Handle<Object> bufferObject;
             SQLPOINTER buffer = nullptr;
-            SQLINTEGER indicator = 0;
+            SQLLEN indicator = 0;
 
             if (JSBuffer::HasInstance(args[2])) {
                 bufferObject = args[2].As<Object>();
