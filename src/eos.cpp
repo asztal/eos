@@ -133,8 +133,8 @@ namespace Eos {
                 async = new uv_async_t();
 
                 auto loop = default_loop = uv_default_loop();
-                CheckUV(uv_async_init(loop, async, &ProcessCallbackQueue));
                 CheckUV(uv_rwlock_init(&rwlock));
+                CheckUV(uv_async_init(loop, async, &ProcessCallbackQueue));
             } 
 
             initCount++;
@@ -152,15 +152,15 @@ namespace Eos {
         // stick around too long?
         void DestroyWaiter() {
             EOS_DEBUG_METHOD_FMT(L"%i--", initCount);
-            Assert(initCount >= 1);
+            assert(initCount >= 1);
 
             initCount--;
 
             if (initCount == 0) {
                 EOS_DEBUG_METHOD();
 
+                uv_close(reinterpret_cast<uv_handle_t*>(async), ClosedAsync);
                 uv_rwlock_destroy(&rwlock);
-                uv_close(reinterpret_cast<uv_handle_t*>(&async), ClosedAsync);
             }
         }
         
@@ -565,17 +565,17 @@ namespace Eos {
             return *reinterpret_cast<SQLCHAR*>(buffer) ? NanTrue() : NanFalse();
 
         case SQL_C_CHAR:
-            // Subtract one character iff buffer full, due to null terminator
-            assert(indicator >= 1);
-            if (indicator == bufferLength)
+            // Subtract one character iff buffer full, due to null terminator. The buffer length can be
+			// zero if the string was empty.
+            if (indicator > 0 && indicator == bufferLength)
                 --indicator;
             return NanNew<String>(reinterpret_cast<const char*>(buffer), indicator);
 
         case SQL_C_WCHAR:
-            // Subtract one character iff buffer full, due to null terminator
-            assert(indicator % 2 == 0);
-            assert(indicator >= sizeof(SQLWCHAR));
-            if (indicator == bufferLength)
+            // Subtract one character iff buffer full, due to null terminator. The indicator can be zero
+			// if the string was empty.
+            assert(indicator % sizeof(SQLWCHAR) == 0);
+            if (indicator > 0 && indicator == bufferLength)
                 indicator -= sizeof(SQLWCHAR);
             return StringFromTChar(reinterpret_cast<const SQLWCHAR*>(buffer), indicator / 2);
 
