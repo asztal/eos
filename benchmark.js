@@ -6,9 +6,9 @@ var eos = require("./"),
 require("colors")
 
 var Cluster = require("cluster")
-for (var i = 0; i < 4; i++)
-    if (Cluster.isMaster)
-        require("cluster").fork()
+//for (var i = 0; i < 4; i++)
+  //  if (Cluster.isMaster)
+    //    require("cluster").fork()
 
 var connectionString = "Driver={ODBC Driver 11 for SQL Server};Server=localhost,3800;Trusted_Connection=Yes"
 
