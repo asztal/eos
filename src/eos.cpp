@@ -517,7 +517,7 @@ namespace Eos {
             case SQL_FLOAT: case SQL_REAL: case SQL_DOUBLE:
                 return SQL_C_DOUBLE;
 
-            case SQL_DATETIME: case SQL_TIMESTAMP:
+            case SQL_DATETIME: case SQL_TYPE_TIMESTAMP:
                 return SQL_C_TYPE_TIMESTAMP;
 
             case SQL_BIT:
@@ -543,12 +543,74 @@ namespace Eos {
         if (jsValue->IsBoolean())
             return SQL_BIT;
         if (jsValue->IsDate())
-            return SQL_TIMESTAMP;
+            return SQL_TYPE_TIMESTAMP;
         if (Buffer::HasInstance(jsValue) || JSBuffer::HasInstance(jsValue))
             return SQL_LONGVARBINARY;
 
         return SQL_WCHAR;
     }
+
+#if defined(WIN32)
+    double SQLTimeToV8Time(const SQL_TIMESTAMP_STRUCT& odbcTime) {
+        SYSTEMTIME time = {
+            odbcTime.year, odbcTime.month, 0, odbcTime.day,
+            odbcTime.hour, odbcTime.minute, odbcTime.second,
+            odbcTime.fraction / 1000000 // wMilliseconds
+        };
+        FILETIME fileTime;
+  
+        // Date::New expects UTC. If TIMEGM is not set, we need to convert
+        // from local time to UTC before passing to Date::New().
+        // 
+        // First, do any time zone conversion, then convert system time to
+        // file time (the number of 100-nanosecond intervals since 1/1/1601 UTC).
+  
+#       if defined(TIMEGM)
+            if (!SystemTimeToFileTime(&time, &fileTime))
+                return 0;
+#       else
+            // Time is local time, convert to UTC first.
+            SYSTEMTIME utcTime;
+            if (!TzSpecificLocalTimeToSystemTime(NULL, &time, &utcTime))
+                return 0;
+            if (!SystemTimeToFileTime(&utcTime, &fileTime))
+                return 0;
+#       endif 
+
+        // This is way MSDN recommends converting a FILETIME to a 64-bit integer. Using
+        // signed integer types here to allow dates before 1/1/1970.
+        LARGE_INTEGER ll;
+        ll.LowPart = fileTime.dwLowDateTime;
+        ll.HighPart = fileTime.dwHighDateTime;
+        
+        // 116444736000000000I64 is the epoch as a FILETIME (1/1/1970)
+        return double(ll.QuadPart - 116444736000000000I64) / 10000; // 100ns intervals to 1ms intervals
+    }
+#else
+    double SQLTimeToV8Time(const SQL_TIMESTAMP_STRUCT& odbcTime) {
+        struct tm timeInfo = { 0 };
+        SQLUINTEGER fraction = 0;
+  
+        timeInfo.tm_year = odbcTime.year - 1900;
+        timeInfo.tm_mon = odbcTime.month - 1;
+        timeInfo.tm_mday = odbcTime.day;
+        timeInfo.tm_hour = odbcTime.hour;
+        timeInfo.tm_min = odbcTime.minute;
+        timeInfo.tm_sec = odbcTime.second;
+        fraction = odbcTime.fraction;
+        
+        // A negative value means that mktime() should use timezone information 
+        // and system databases to attempt to determine whether DST is in effect 
+        // at the specified time.
+        timeInfo.tm_isdst = -1;
+      
+#       if defined(TIMEGM)
+            return (double(timegm(&timeInfo)) * 1000) + (fraction / 1000000.0);
+#       else
+            return (double(timelocal(&timeInfo)) * 1000) + (fraction / 1000000.0);
+#       endif
+    }
+#endif // WIN32
 
     Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN indicator, SQLLEN bufferLength, SQLSMALLINT cType) {
         if (indicator == SQL_NO_TOTAL || indicator > bufferLength)
@@ -581,21 +643,7 @@ namespace Eos {
 
         case SQL_C_TYPE_TIMESTAMP: {
             auto& ts = *reinterpret_cast<SQL_TIMESTAMP_STRUCT*>(buffer);
-            tm tm = ::tm();
-            tm.tm_year = ts.year - 1900;
-            tm.tm_mon = ts.month - 1;
-            tm.tm_mday = ts.day;
-            tm.tm_hour = ts.hour;
-            tm.tm_min = ts.minute;
-            tm.tm_sec = ts.second;
-            
-#if defined(WIN32)
-        return NanNew<Date>((double(mktime(&tm)) * 1000)
-               + (ts.fraction / 1000000.0));
-#else
-        return NanNew<Date>((double(timelocal(&tm)) * 1000)
-               + (ts.fraction / 1000000.0));
-#endif
+            return NanNew<Date>(SQLTimeToV8Time(ts));
         }
 
         default:
