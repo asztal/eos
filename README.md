@@ -441,7 +441,7 @@ pass `undefined` for the `value` argument of `bindParameter`.
 |`SQL_PARAM_OUTPUT`|||Bound|
 |`SQL_PARAM_OUTPUT_STREAM`|||Streamed|
 
-### Statement.putData(parameter, callback [err, needData, dataAvailable])
+### Statement.putData(parameter, [buffer], [bytes], callback [err, needData, dataAvailable])
 
 Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data at *execution). 
 `parameter` should the `Parameter` object returned by `paramData` when another ODBC call returns
@@ -450,8 +450,9 @@ Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data
 When writing binary columns, simply fill `parameter.buffer` with the data to send before calling
 `putData` (e.g. by calling `fs.read` and passing it the buffer).
 
-*Known limitation*: due to [issue #3](//github.com/lee-houghton/eos/issues/3) it is currently not 
-possible to send only part of the parameter's buffer on the final `putData` call.
+If `buffer` is passed, it will be used instead of the `parameter.buffer`. If `bytes` is a number, it 
+specifies how many bytes of data are in the buffer; if `bytes` is null then `null` will be sent (this
+is only valid for the first chunk); if `bytes` is anything else, buffer will be assumed to be full.
 
 *TODO*: Figure out the precise semantics when **SQLPutData** returns `SQL_NEED_DATA` and when it doesn't,
 and if it's OK to send more data even if the server doesn't ask for it (I think it's OK).

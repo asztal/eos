@@ -20,7 +20,7 @@ namespace Eos {
 #if defined(DEBUG)
             NanAssignPersistent(stackTrace_, 
                 IF_NODE_12
-                    ( StackTrace::CurrentStackTrace(nan_isolate, 10)
+                    ( StackTrace::CurrentStackTrace(v8::Isolate::GetCurrent(), 10)
                     , StackTrace::CurrentStackTrace(10))
                 );
 #endif

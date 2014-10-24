@@ -12,11 +12,15 @@ namespace Eos {
         NAN_GETTER(GetValue) const;
         NAN_SETTER(SetValue);
 
+        NAN_GETTER(GetBytesInBuffer) const;
+        NAN_SETTER(SetBytesInBuffer);
+
         SQLLEN BytesInBuffer() const;
         
         NAN_GETTER(GetBuffer) const;
+        NAN_SETTER(SetBuffer);
+
         NAN_GETTER(GetBufferLength) const;
-        NAN_GETTER(GetBytesInBuffer) const;
         NAN_GETTER(GetIndex) const;
         NAN_GETTER(GetKind) const;
 
