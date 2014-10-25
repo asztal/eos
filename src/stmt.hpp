@@ -38,6 +38,8 @@ namespace Eos {
         NAN_METHOD(SetParameterName);
         NAN_METHOD(UnbindParameters);
 
+        NAN_METHOD(BindCol);
+
         NAN_METHOD(CloseCursor);
 
     public:

@@ -30,6 +30,7 @@ Parameter::Parameter
     , SQLLEN length
     , Handle<Object> bufferObject
     , SQLLEN indicator
+    , bool autoWrap
     ) 
     : parameterNumber_(parameterNumber)
     , inOutType_(inOutType)
@@ -39,9 +40,12 @@ Parameter::Parameter
     , length_(length)
     , indicator_(indicator)
 {
+    EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
+
     NanAssignPersistent(bufferObject_, bufferObject);
 
-    EOS_DEBUG_METHOD_FMT(L"buffer = 0x%p, length = %i", buffer, length);
+    if (autoWrap)
+        Wrap(Constructor()->GetFunction()->NewInstance());
 }
 
 NAN_GETTER(Parameter::GetBuffer) const {

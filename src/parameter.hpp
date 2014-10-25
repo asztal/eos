@@ -4,7 +4,7 @@
 
 namespace Eos {
     struct Parameter: ObjectWrap {
-        Parameter(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT sqlType, SQLSMALLINT cType, void* buffer, SQLLEN length, Handle<Object> bufferObject, SQLLEN indicator);
+        Parameter(SQLUSMALLINT parameterNumber, SQLSMALLINT inOutType, SQLSMALLINT sqlType, SQLSMALLINT cType, void* buffer, SQLLEN length, Handle<Object> bufferObject, SQLLEN indicator, bool autoWrap = false);
         ~Parameter();
         
         static void Init(Handle<Object> exports);

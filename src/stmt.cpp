@@ -1,5 +1,6 @@
 #include "stmt.hpp"
 #include "parameter.hpp"
+#include "buffer.hpp"
 
 using namespace Eos;
 
@@ -23,6 +24,7 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(Constructor(), "putData", Statement, PutData, sig0);
     EOS_SET_METHOD(Constructor(), "moreResults", Statement, MoreResults, sig0);
     EOS_SET_METHOD(Constructor(), "bindParameter", Statement, BindParameter, sig0);
+    EOS_SET_METHOD(Constructor(), "bindCol", Statement, BindCol, sig0);
     EOS_SET_METHOD(Constructor(), "setParameterName", Statement, SetParameterName, sig0);
     EOS_SET_METHOD(Constructor(), "unbindParameters", Statement, UnbindParameters, sig0);
     EOS_SET_METHOD(Constructor(), "closeCursor", Statement, CloseCursor, sig0);
@@ -268,6 +270,64 @@ NAN_METHOD(Statement::UnbindParameters) {
     NanDisposePersistent(bindings_);
 
     NanReturnUndefined();
+}
+
+NAN_METHOD(Statement::BindCol) {
+    EOS_DEBUG_METHOD();
+
+    if (args.Length() < 2)
+        return NanThrowError("Too few arguments");
+
+    if (!args[0]->IsInt32())
+        return NanThrowTypeError("The column number must be an integer between 0 and 65535");
+
+    auto columnNumber = args[0]->Int32Value();
+    if (columnNumber < 0 || columnNumber > USHRT_MAX)
+        return NanThrowRangeError("The column number must be an integer between 0 and 65535");
+            
+    if (!args[1]->IsInt32())
+        return NanThrowTypeError("The column type must be an integer");
+    auto type = args[1]->Int32Value();
+
+    SQLPOINTER buffer;
+    SQLLEN length;
+    Handle<Object> jsBuffer;
+
+    auto cType = Eos::GetCTypeForSQLType(type);
+    auto requiredSize = Buffers::GetDesiredBufferLength(cType);
+    
+    if (args.Length() >= 3 && JSBuffer::HasInstance(args[2]))
+        jsBuffer = args[2]->ToObject();
+    else
+        jsBuffer = JSBuffer::New(requiredSize > 0 ? requiredSize : 65536);
+
+    assert(!jsBuffer.IsEmpty());
+
+    if (auto msg = JSBuffer::Unwrap(jsBuffer, buffer, length))
+        return NanThrowTypeError(msg);
+    
+    if (requiredSize && length < requiredSize)
+        return NanThrowRangeError("The given buffer is not big enough to hold a value of the specified type.");
+
+    assert(buffer && length);
+
+    auto param = new(nothrow) Parameter(columnNumber, SQL_PARAM_OUTPUT, type, cType, buffer, length, jsBuffer, 0, true);
+    if (!param)
+        return NanThrowError("Out of memory allocating parameter");
+
+    auto ret = SQLBindCol(
+        GetHandle(),
+        columnNumber,
+        cType,
+        buffer, length,
+        &param->Indicator());
+
+    EOS_DEBUG(L"Return value of SQLBindCol: %i\n", ret);
+
+    if (!SQL_SUCCEEDED(ret))
+        return NanThrowError(GetLastError());
+
+    EosMethodReturnValue(NanObjectWrapHandle(param));
 }
 
 NAN_METHOD(Statement::CloseCursor) {
