@@ -21,11 +21,12 @@ function getCustomerName(customerID, callback) {
         if (err)
     	    return callback(err);
 
-	    var stmt = conn.newStatement();
+        var stmt = conn.newStatement();
         
         stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, customerID);
+        var name = stmt.bindCol(1, eos.SQL_WVARCHAR, new Buffer(100));
         
-        stmt.execDirect("select ID, name, address from Customers where ID = ?", function (err) {
+        stmt.execDirect("select name from Customers where ID = ?", function (err) {
             if (err)
                 return callback(err);
             
@@ -35,19 +36,17 @@ function getCustomerName(customerID, callback) {
     	        if (!hasData)
     	    	    return callback (new Error("Customer not found"));
     	    	
-    	        stmt.getData(2, eos.SQL_LONGVARCHAR, null, false, function (err, name) {
-    	    	    callback(err, name);
-    	    	    
-    	    	    stmt.cancel();
-                    
-                    conn.disconnect(function(err) {
+    	    	callback(null, name.value);
+    	    	
+    	    	stmt.closeCursor();
+    	    	stmt.free();
+    	    	conn.disconnect(function(err) {
     	                if (err)
         	                console.log("Couldn't disconnect!", err.message);
-                        
-    	                conn.free();
-                        env.free();
-                    });
-    	        });
+        	        
+    	    		conn.free();
+    	    		env.free();
+    	    	});
     	    });
         });
     });
