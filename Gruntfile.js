@@ -7,7 +7,7 @@ module.exports = function (grunt) {
                 '-W030': true, // expect(xs).to.be.empty;
                 esnext: true
             },
-            src: ['lib/*.js', 'spec/*.js', 'test.js'],
+            src: ['lib/*.js', 'spec/*.js', 'test.js']
         },
         jasmine_node: {
             projectRoot: ".",

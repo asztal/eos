@@ -517,7 +517,9 @@ namespace Eos {
             case SQL_FLOAT: case SQL_REAL: case SQL_DOUBLE:
                 return SQL_C_DOUBLE;
 
-            case SQL_DATETIME: case SQL_TYPE_TIMESTAMP:
+            case SQL_DATE: case SQL_TYPE_DATE: 
+            case SQL_TIME: case SQL_TYPE_TIME:
+            case SQL_TIMESTAMP: case SQL_TYPE_TIMESTAMP:
                 return SQL_C_TYPE_TIMESTAMP;
 
             case SQL_BIT:

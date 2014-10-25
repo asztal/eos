@@ -5,7 +5,7 @@ var assert = require('assert'),
 
 function log(x) { console.log(String(x).bold.yellow); }
 
-if (false) {
+if (true) {
     var jasmine = require("jasmine-node");
     jasmine.executeSpecsInFolder({
         specFolders: ["spec"],
@@ -45,66 +45,6 @@ function test() {
             });
         });
     });
-
-    return;
-    conn.driverConnect(require("./spec/settings.json").connectionString, function(err) {
-        if (err)
-            throw err;
-
-        var stmt = conn.newStatement();
-
-        stmt.prepare("select 42 as x", function () {
-            var t0 = new Date().getTime();
-
-            function donex(a, e) {
-                console.log("I DONE IT".bold.red, a, e);
-                console.trace();
-                while (1)
-                    console.log("I R BABOON");
-                return donex(a, e);
-            }
-
-            stmt.execute(function (err) {
-                var t1 = new Date().getTime();
-
-                console.log("t1: %s", (t1 - t0).toString().bold.yellow);
-
-
-                if (err) {
-                    console.log("Err!!!!!!!!!!!", err);
-                    process.exit(999);
-                    return done(err);
-                }
-
-                stmt.closeCursor();
-
-                var t2 = new Date().getTime();
-
-                console.log("t2: %s", (t2 - t1).toString().bold.yellow);
-
-                stmt.execute(function (e, r) {
-                    var t3 = new Date().getTime();
-
-                    console.log("t3: %s", (t3 - t2).toString().bold.yellow);
-
-                    console.log("FINISHED OMG".green.bold);
-                    stmt.free();
-                    conn.disconnect(function () {
-                        conn.free();
-                        env.free();
-
-                        delete env;
-                        delete conn;
-                        delete stmt;
-
-                        gc();
-
-                        debugOps();
-                    });
-                });
-            });
-        });
-    })
 }
 
 function debugOps() {
@@ -122,45 +62,3 @@ function debugOps() {
         console.log(ops[i].stackTrace);
     }
 }
-
-function testx() {
-    var env = new eos.Environment();
-
-    var conn = env.newConnection();
-
-    conn.connect(connectionString, d.bind(function (err) {
-        log(err);
-        assert.ifError(err);
-
-        var stmt = conn.newStatement();
-        log(stmt);
-
-        stmt.execDirect("select 88 as x, 'I shot the sheriff' as y, replicate('a',33) as z", d.bind(function (err) {
-            assert.ifError(err);
-
-            stmt.fetch(d.bind(function (err, hasData) {
-                assert.ifError(err);
-                log("hasData: " + hasData);
-
-                var SQL_INTEGER = 4, SQL_VARCHAR = 12, SQL_BINARY = -2;
-                var SlowBuffer = require('buffer').SlowBuffer;
-
-                stmt.getData(2, SQL_BINARY, new SlowBuffer(100), false, function (err, result, totalBytes) {
-                    assert.ifError(err);
-                    log("result:" + typeof result);
-                    console.log(result);
-                    console.log(result.parent);
-                    log("totalBytes:" + totalBytes);
-
-                    conn.disconnect(d.bind(function (err) {
-                        log(err);
-                        assert.ifError(err);
-
-                        conn.free();
-                    }));
-                });
-            }));
-        }));
-    }));
-}
-

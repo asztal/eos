@@ -1,4 +1,4 @@
-var eos = require("../").bindings,
+var eos = require("../"),
     common = require("./common"),
     expect = common.expect,
     env = common.env;

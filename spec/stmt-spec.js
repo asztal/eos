@@ -1,4 +1,4 @@
-﻿var eos = require("../").bindings,
+﻿var eos = require("../"),
     common = require("./common"),
     colors = require("colors"),
     expect = common.expect,
@@ -82,6 +82,9 @@ describe("A newly created statement", function () {
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_DOUBLE", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_FLOAT", 2, common.closeTo(0.0001));
     testInputParam(27.69, "SQL_PARAM_INPUT", "SQL_INTEGER", 2, common.closeTo(0.7));
+
+    var now = new Date();
+    testInputParam(now, "SQL_PARAM_INPUT", "SQL_TYPE_DATE", 0, common.equal);
     
     var shortData = new Buffer([1, 2, 3, 4, 5, 6, 7, 8, 9], "binary");
     var longData = new Buffer(Math.floor(Math.random() * 20000) + 40000), longString = "";
@@ -206,7 +209,7 @@ describe("A newly created statement", function () {
 
                         param.value = val;
 
-                        stmt.putData(param, function (err) {
+                        stmt.putData(param, null, void 0, function (err) {
                             if (err)
                                 return done(err);
 
@@ -323,15 +326,17 @@ describe("A prepared statement", function () {
 
 
             stmt.execute(done);
-            var ops = eos.activeOperations();
-            if (ops.length > 1) {
-                console.log("Active operations:".green.bold);
-                console.log("------------------\n".green.bold);
-                for (var i = 0; i < ops.length; i++) {
-                    console.log(ops[i].name.magenta.bold, "(refs: " + ops[i].refs.toString().yellow.bold + "):");
-                    console.log(ops[i].stackTrace);
+            if (eos.activeOperations) {
+                var ops = eos.activeOperations();
+                if (ops.length > 1) {
+                    console.log("Active operations:".green.bold);
+                    console.log("------------------\n".green.bold);
+                    for (var i = 0; i < ops.length; i++) {
+                        console.log(ops[i].name.magenta.bold, "(refs: " + ops[i].refs.toString().yellow.bold + "):");
+                        console.log(ops[i].stackTrace);
+                    }
+                    process.exit(555);
                 }
-                process.exit(555);
             }
         });
     });

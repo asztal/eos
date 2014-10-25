@@ -1,6 +1,6 @@
 var FS = require('fs'),
     Path = require('path'),
-    Eos = require('../').bindings,
+    Eos = require('../'),
     Utils = require('util');
 
 var settings;
@@ -31,13 +31,17 @@ module.exports = {
     },
 
     stmt: function stmt(cb) {
-        this.conn(function (err, cb) {
+        this.conn(function (err, conn) {
             if (err)
                 return cb(err);
             var stmt = conn.newStatement();
             cb(null, stmt, conn);
         });
     },
+
+    equal: function(x, y) {
+        return x === y;
+    },  
 
     bufEqual: function bufEqual(x, y) {
         if (!x && !y)
