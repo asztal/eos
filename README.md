@@ -9,17 +9,15 @@ eos
 # Example
 
 ```js
-
 var eos = require('eos');
-
 
 function getCustomerName(customerID, callback) {
     var env = new eos.Environment();
     var conn = env.newConnection();
 
-    conn.connect("DSN=Customers;UID=Sara;PWD=12345", function(err) {
+    conn.driverConnect("DSN=Customers;UID=Sara;PWD=12345", function(err) {
         if (err)
-    	    return callback(err);
+            return callback(err);
 
         var stmt = conn.newStatement();
         
@@ -30,24 +28,24 @@ function getCustomerName(customerID, callback) {
             if (err)
                 return callback(err);
             
-    	    stmt.fetch(function(err, hasData) {
-    	        if (!err)
-    	            return callback (err);
-    	        if (!hasData)
-    	    	    return callback (new Error("Customer not found"));
-    	    	
-    	    	callback(null, name.value);
-    	    	
-    	    	stmt.closeCursor();
-    	    	stmt.free();
-    	    	conn.disconnect(function(err) {
-    	                if (err)
-        	                console.log("Couldn't disconnect!", err.message);
-        	        
-    	    		conn.free();
-    	    		env.free();
-    	    	});
-    	    });
+            stmt.fetch(function(err, hasData) {
+                if (!err)
+                    return callback (err);
+                if (!hasData)
+                    return callback (new Error("Customer not found"));
+                
+                callback(null, name.value);
+                
+                stmt.closeCursor();
+                stmt.free();
+                conn.disconnect(function(err) {
+                    if (err)
+                        console.log("Couldn't disconnect!", err.message);
+                    
+                    conn.free();
+                    env.free();
+                });
+            });
         });
     });
 }
