@@ -1,10 +1,11 @@
-eos
-===
+What is this "eos"?
+===================
 
- * It's an ODBC library for [Node.js](http://www.nodejs.org).
- * It makes asynchronous requests (using the notification method) where possible.
- * The aim is to be minimal and well-documented.
- * It's MIT-licensed.
+ * It's an ODBC library for [Node.js](http://www.nodejs.org), with support for v0.10 and (tentatively) v0.11.
+ * It makes **asynchronous** requests using the notification method on Windows 8.1, falling back to `libuv` on other platforms.
+ * The aim is to be a set of **bindings** rather than a fully-fledged ODBC library, rather than providing unnecessary functionality which could be written in JavaScript. Hence it is small and fairly well documented.
+ * Anything that can be asynchronous, is. It is possible to **stream large column values** by calling `SQLGetData` and `SQLPutData` in chunks.
+ * It's **MIT-licensed**. Pull requests are welcome.
  
 # Example
 
@@ -36,7 +37,10 @@ function getCustomerName(customerID, callback) {
                 
                 callback(null, name.value);
                 
+                // You'd actually want to handle exceptions here - see documentation of 
+                // closeCursor for details.
                 stmt.closeCursor();
+                
                 stmt.free();
                 conn.disconnect(function(err) {
                     if (err)
@@ -440,7 +444,7 @@ pass `undefined` for the `value` argument of `bindParameter`.
 
 ### Statement.putData(parameter, [buffer], [bytes], callback [err, needData, dataAvailable])
 
-Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data at *execution). 
+Wraps **SQLPutData**. Used for sending parameter values in chunks (known as _data at execution_). 
 `parameter` should the `Parameter` object returned by `paramData` when another ODBC call returns
 `needData` as true.
 
@@ -453,6 +457,16 @@ is only valid for the first chunk); if `bytes` is anything else, buffer will be 
 
 *TODO*: Figure out the precise semantics when **SQLPutData** returns `SQL_NEED_DATA` and when it doesn't,
 and if it's OK to send more data even if the server doesn't ask for it (I think it's OK).
+
+### Statement.closeCursor([throwOnNoCursor = false]) _(synchronous)_
+
+Wraps **SQLCloseCursor**. Closes the current cursor associated with a statement (i.e. makes the statement
+ready for another `execute` call). If `throwOnNoCursor` is true (which it isn't by default), the call will
+throw an exception if there is not currently an active result set.
+
+Even if `throwOnNoCursor` is not set, `closeCursor` can still throw an exception, so be careful. An examples
+of this are the `08S01` SQLSTATE (Communication link failure). If this error is thrown, the only option is
+to free the `Statement` and disconnect the `Connection`.
 
 ### Statement.free() _(synchronous)_
 
