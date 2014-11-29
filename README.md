@@ -100,7 +100,7 @@ ODBC errors look something like this:
 
 ODBC can return multiple errors for a single operation. In such cases, the first error is the main error returned, however the full list of errors is returned in the `errors` property.
 
-## <a name="eos-data-types">Data types</a>
+## Data types
 
 The mapping between SQL data types and JavaScript data types is fairly simple. This table will help
 you understand what SQL type to pass to `getData` to get back the correct data type, and what to pass to
@@ -444,7 +444,7 @@ pass `undefined` for the `value` argument of `bindParameter`.
 
 ### Statement.setParameterName(parameterNumber, name) _(synchronous)_
 
-Sets the name for a bound parameter, using **SQLSetDescFieldW** to set the _SQL_DESC_NAME_ on the input 
+Sets the name for a bound parameter, using **SQLSetDescField** to set the _SQL_DESC_NAME_ on the input 
 parameter descriptor. You might want to use this to call stored procedures with named parameters, e.g.:
 
 ```js
@@ -483,7 +483,7 @@ and if it's OK to send more data even if the server doesn't ask for it (I think 
 
 Wraps **SQLBindCol**. Binds the parameter at index `number` (starting at 1) to an buffer of type `type`. This
 should be an SQL type such as `SQL_INTEGER`. To see how SQL types are converted into JavaScript types, see
-[Data Types](#eos-data-types).
+[Data Types](#data-types).
 
 If you do not pass a buffer, one will be allocated automatically. For fixed length data types such as 
 `SQL_INTEGER`, it will be exactly large enough to contain the result. For variable length data types such as
@@ -492,7 +492,7 @@ If you do not pass a buffer, one will be allocated automatically. For fixed leng
 If a Buffer is passed, and it is too small to contain a fixed-length result, an error will occur, rather than
 truncating the value.
 
-### Statement.unbindColumn(`number`) _(synchronous)_
+### Statement.unbindColumn(number) _(synchronous)_
 
 Unbind the column number `number`. (Using **SQLBindCol** with a null buffer).
 
