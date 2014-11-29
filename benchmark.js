@@ -92,10 +92,14 @@ Async.eachSeries(FS.readdirSync(Path.join(__dirname, "benchmarks")), function(na
                         "run", times.toString().yellow.bold,
                         "times in", elapsed.toString().yellow.bold + "ms,",
                         Math.floor(times/(elapsed/1000)).toString().yellow.bold + "/sec")
+        } else {
+            console.log("Error".bold.red, "in benchmark", fn.name.bold.magenta + ":", err.message)
         }
     })
 }, function(err) {
     if (err)
         console.error(err.message)
+    else
+        console.log("Done")
 })
 

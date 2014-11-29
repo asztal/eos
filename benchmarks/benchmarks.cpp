@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <ctime>
 
+SQLWCHAR connectionString[] = L"Driver=ODBC Driver 11 for SQL Server;Server=localhost,3800;Trusted_Connection=Yes";
+
 int main(int argc, char* argv[]) {
     SQLHENV hEnv = SQL_NULL_HANDLE;
     SQLHDBC hDbc = SQL_NULL_HANDLE;
@@ -13,13 +15,13 @@ int main(int argc, char* argv[]) {
     if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv)))
         goto error;
 
-    if (!SQL_SUCCEEDED(SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3_80, NULL)))
+	if (!SQL_SUCCEEDED(SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, NULL)))
         goto error;
 
     if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc)))
         goto error;
 
-    if (!SQL_SUCCEEDED(SQLDriverConnect(hDbc, SQL_NULL_HANDLE, L"Driver=ODBC Driver 11 for SQL Server;Server=localhost,3800;Trusted_Connection=Yes", SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT)))
+    if (!SQL_SUCCEEDED(SQLDriverConnect(hDbc, SQL_NULL_HANDLE, connectionString, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT)))
         goto error;
 
     if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt)))

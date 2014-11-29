@@ -27,7 +27,7 @@
           'src/stmt.putData.cpp'
       ],
       'defines' : [
-        'UNICODE'
+        'UNICODE', 'XXXEOS_ENABLE_ASYNC_NOTIFICATIONS'
       ],
       'include_dirs': [
         "<!(node -e \"require('nan')\")"

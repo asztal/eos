@@ -4,14 +4,14 @@ module.exports = function execDirectSimple(conn, callback) {
     var stmt = conn.stmt = conn.stmt || conn.newStatement();
     
     if (!conn.x) {
-        stmt.prepare("select ? + ?, ?", exec);
-        
         conn.x = stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, Math.floor(Math.random() * 1000), conn.buf3);
         conn.y = stmt.bindParameter(2, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, Math.floor(Math.random() * 1000), conn.buf4);
         conn.str = stmt.bindParameter(3, eos.SQL_PARAM_INPUT, eos.SQL_VARCHAR, 30, 0, "This is a string", conn.buf5);
 
         conn.z = stmt.bindCol(1, eos.SQL_INTEGER);
-        conn.res = stmt.bindCol(2, eos.SQL_WVARCHAR, 30);
+        conn.res = stmt.bindCol(2, eos.SQL_WVARCHAR, 32);
+
+        stmt.prepare("select ? + ?, ?", exec);
     } else {
         exec();
     }
