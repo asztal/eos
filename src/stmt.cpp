@@ -24,9 +24,11 @@ void Statement::Init(Handle<Object> exports) {
     EOS_SET_METHOD(Constructor(), "putData", Statement, PutData, sig0);
     EOS_SET_METHOD(Constructor(), "moreResults", Statement, MoreResults, sig0);
     EOS_SET_METHOD(Constructor(), "bindParameter", Statement, BindParameter, sig0);
-    EOS_SET_METHOD(Constructor(), "bindCol", Statement, BindCol, sig0);
     EOS_SET_METHOD(Constructor(), "setParameterName", Statement, SetParameterName, sig0);
     EOS_SET_METHOD(Constructor(), "unbindParameters", Statement, UnbindParameters, sig0);
+    EOS_SET_METHOD(Constructor(), "bindCol", Statement, BindCol, sig0);
+    EOS_SET_METHOD(Constructor(), "unbindColumn", Statement, UnbindColumn, sig0);
+    EOS_SET_METHOD(Constructor(), "unbindColumns", Statement, UnbindColumns, sig0);
     EOS_SET_METHOD(Constructor(), "closeCursor", Statement, CloseCursor, sig0);
 }
 
@@ -204,10 +206,10 @@ NAN_METHOD(Statement::BindParameter) {
 void Statement::AddBoundParameter(Parameter* param) {
     EOS_DEBUG_METHOD();
 
-    if (bindings_.IsEmpty())
-        NanAssignPersistent(bindings_, NanNew<Array>());
+    if (boundParameters_.IsEmpty())
+        NanAssignPersistent(boundParameters_, NanNew<Array>());
 
-    NanNew(bindings_)->Set(param->ParameterNumber(), NanObjectWrapHandle(param));
+    NanNew(boundParameters_)->Set(param->ParameterNumber(), NanObjectWrapHandle(param));
 }
 
 NAN_METHOD(Statement::SetParameterName) {
@@ -251,10 +253,10 @@ NAN_METHOD(Statement::SetParameterName) {
 Parameter* Statement::GetBoundParameter(SQLUSMALLINT parameterNumber) {
     EOS_DEBUG_METHOD_FMT(L"%i", parameterNumber);
 
-    if (bindings_.IsEmpty())
+    if (boundParameters_.IsEmpty())
         return nullptr;
 
-    auto handle = NanNew(bindings_)->Get(parameterNumber);
+    auto handle = NanNew(boundParameters_)->Get(parameterNumber);
     if (handle->IsObject())
         return Parameter::Unwrap(handle.As<Object>());
 
@@ -267,7 +269,7 @@ NAN_METHOD(Statement::UnbindParameters) {
     if(!SQL_SUCCEEDED(SQLFreeStmt(GetHandle(), SQL_RESET_PARAMS)))
         return NanThrowError(GetLastError());
 
-    NanDisposePersistent(bindings_);
+	NanDisposePersistent(boundParameters_);
 
     NanReturnUndefined();
 }
@@ -327,7 +329,72 @@ NAN_METHOD(Statement::BindCol) {
     if (!SQL_SUCCEEDED(ret))
         return NanThrowError(GetLastError());
 
+	AddBoundColumn(param);
+
     EosMethodReturnValue(NanObjectWrapHandle(param));
+}
+
+void Statement::AddBoundColumn(Parameter* col) {
+    EOS_DEBUG_METHOD();
+
+    if (boundColumns_.IsEmpty())
+        NanAssignPersistent(boundColumns_, NanNew<Array>());
+
+    NanNew(boundColumns_)->Set(col->ParameterNumber(), NanObjectWrapHandle(col));
+}
+
+// TODO: Data-only option? (i.e. Unbind the data buffer, 
+// but still receive the length/indicator value.)
+NAN_METHOD(Statement::UnbindColumn) {
+    EOS_DEBUG_METHOD();
+
+    if (args.Length() < 1)
+        return NanThrowError("Too few arguments");
+
+    if (!args[0]->IsInt32())
+        return NanThrowTypeError("The column number must be an integer between 0 and 65535");
+
+    auto columnNumber = args[0]->Int32Value();
+    if (columnNumber < 0 || columnNumber > USHRT_MAX)
+        return NanThrowRangeError("The column number must be an integer between 0 and 65535");
+
+	auto ret = SQLBindCol(
+		GetHandle(),
+		columnNumber,
+		SQL_DEFAULT,
+		nullptr,
+		0,
+		nullptr);
+
+    if (!SQL_SUCCEEDED(ret))
+        return NanThrowError(GetLastError());
+
+	if (!boundColumns_.IsEmpty()) {
+		auto bc = NanNew(boundColumns_);
+		bc->Delete(columnNumber);
+		if (bc->Length() == 0)
+			NanDisposePersistent(boundColumns_);
+	} else {
+		EOS_DEBUG(L"Couldn't remove bound column %d because boundColumns_.IsEmpty()\n", columnNumber);
+	}
+
+	// No need to dispose the Parameter here - JS-land might still have a reference to it.
+	// It will be garbage collected if necessary.
+
+    NanReturnUndefined();
+}
+
+NAN_METHOD(Statement::UnbindColumns) {
+    EOS_DEBUG_METHOD();
+
+    if(!SQL_SUCCEEDED(SQLFreeStmt(GetHandle(), SQL_UNBIND)))
+        return NanThrowError(GetLastError());
+
+	// No need to dispose the Parameters here. JS-land might still have a reference to them.
+	// They'll be garbage collected if necessary.
+	NanDisposePersistent(boundColumns_);
+
+    NanReturnUndefined();
 }
 
 NAN_METHOD(Statement::CloseCursor) {
@@ -347,6 +414,12 @@ NAN_METHOD(Statement::CloseCursor) {
 
 Statement::~Statement() {
     EOS_DEBUG_METHOD();
+	
+	if (!boundParameters_.IsEmpty())
+		NanDisposePersistent(boundParameters_);
+	
+	if (!boundColumns_.IsEmpty())
+		NanDisposePersistent(boundColumns_);
 }
 
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)

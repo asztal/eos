@@ -39,6 +39,8 @@ namespace Eos {
         NAN_METHOD(UnbindParameters);
 
         NAN_METHOD(BindCol);
+        NAN_METHOD(UnbindColumn);
+        NAN_METHOD(UnbindColumns);
 
         NAN_METHOD(CloseCursor);
 
@@ -49,11 +51,13 @@ namespace Eos {
 
     protected:
         
+        void AddBoundColumn(Parameter* col);
         void AddBoundParameter(Parameter* param);
         Parameter* GetBoundParameter(SQLUSMALLINT parameterNumber);
 
     private:
-        Persistent<Array> bindings_;
+        Persistent<Array> boundParameters_;
+        Persistent<Array> boundColumns_;
 
         Connection* connection_;
 
