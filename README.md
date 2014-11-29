@@ -96,7 +96,7 @@ ODBC errors look something like this:
 
 ODBC can return multiple errors for a single operation. In such cases, the first error is the main error returned, however the full list of errors is returned in the `errors` property.
 
-## Data types
+## <a name="eos-data-types">Data types</a>
 
 The mapping between SQL data types and JavaScript data types is fairly simple. This table will help
 you understand what SQL type to pass to `getData` to get back the correct data type, and what to pass to
@@ -438,6 +438,27 @@ pass `undefined` for the `value` argument of `bindParameter`.
 |`SQL_PARAM_OUTPUT`|||Bound|
 |`SQL_PARAM_OUTPUT_STREAM`|||Streamed|
 
+### Statement.setParameterName(parameterNumber, name) _(synchronous)_
+
+Sets the name for a bound parameter, using **SQLSetDescFieldW** to set the _SQL_DESC_NAME_ on the input 
+parameter descriptor. You might want to use this to call stored procedures with named parameters, e.g.:
+
+```js
+    var x = stmt.bindParameter(2, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, 27),
+	    y = stmt.bindParameter(3, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, 42),
+	    z = stmt.bindParameter(1, eos.SQL_PARAM_OUTPUT, eos.SQL_INTEGER, 0, 0)
+
+	stmt.setParameterName(2, "x");
+	stmt.setParameterName(3, "y");
+	stmt.execDirect("{call ? = add(?, ?)}", function(err) {
+		// Use z.value if the function succeeded.
+	});
+```
+
+### Statement.unbindParameters() _(synchronous)_
+
+Unbinds all bound parameters. (Using **SQLFreeStmt** with `SQL_RESET_PARAMS`).
+
 ### Statement.putData(parameter, [buffer], [bytes], callback [err, needData, dataAvailable])
 
 Wraps **SQLPutData*. Used for sending parameter values in chunks (known as *data at *execution). 
@@ -453,6 +474,27 @@ is only valid for the first chunk); if `bytes` is anything else, buffer will be 
 
 *TODO*: Figure out the precise semantics when **SQLPutData** returns `SQL_NEED_DATA` and when it doesn't,
 and if it's OK to send more data even if the server doesn't ask for it (I think it's OK).
+
+### Statement.bindCol(number, type, [buffer]) _(synchronous)_
+
+Wraps **SQLBindCol**. Binds the parameter at index `number` (starting at 1) to an buffer of type `type`. This
+should be an SQL type such as `SQL_INTEGER`. To see how SQL types are converted into JavaScript types, see
+[Data Types](#eos-data-types).
+
+If you do not pass a buffer, one will be allocated automatically. For fixed length data types such as 
+`SQL_INTEGER`, it will be exactly large enough to contain the result. For variable length data types such as
+`SQL_VARCHAR`, it will be 65536 bytes. 
+
+If a Buffer is passed, and it is too small to contain a fixed-length result, an error will occur, rather than
+truncating the value.
+
+### Statement.unbindColumn(`number`) _(synchronous)_
+
+Unbind the column number `number`. (Using **SQLBindCol** with a null buffer).
+
+### Statement.unbindColumns() _(synchronous)_
+
+Unbinds all bound columns. (Using **SQLFreeStmt** with `SQL_UNBIND`).
 
 ### Statement.free() _(synchronous)_
 
