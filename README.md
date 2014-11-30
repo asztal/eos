@@ -3,15 +3,18 @@ What is this "eos"?
 
  * It's an ODBC library for [Node.js](http://www.nodejs.org), with support for v0.10 and (tentatively) v0.11.
  * It makes **asynchronous** requests using the notification method on Windows 8.1, falling back to `libuv` on other platforms.
- * The aim is to be a set of **bindings** rather than a fully-fledged ODBC library, rather than providing unnecessary functionality which could be written in JavaScript. Hence it is small and fairly well documented.
+ * The aim is to be a set of **bindings** rather than a fully-fledged ODBC library, and does not provide functionality which could be written in JavaScript. Hence it is small and fairly well documented.
  * Anything that can be asynchronous, is. It is possible to **stream large column values** by calling `SQLGetData` and `SQLPutData` in chunks.
- * It's **MIT-licensed**. Pull requests are welcome.
+ * Or, if you have lots of small columns, why not **bind them to a buffer** with `SQLBindCol`?
+ * It's **MIT-licensed**, but contributions via pull requests are welcome.
  
 # Example
 
 ```js
 var eos = require('eos');
 
+// Yeah, this is quite a lot of code for such a simple task! Remember, this
+// is a set of bindings first and foremost. 
 function getCustomerName(customerID, callback) {
     var env = new eos.Environment();
     var conn = env.newConnection();
@@ -64,8 +67,9 @@ JavaScript object is garbage collected, but you may choose to do so earlier.
 Eos makes no attempt to provide bells and whistles: this is a low-level wrapper around ODBC which
 can be used as a building block for a more high-level library.
 
-Most functions in Eos are asynchronous (any ODBC call which can return ``SQL_STILL_EXECUTING``), however some are guaranteed to return synchronously and are
-marked here with _(synchronous)_ accordingly.
+Most functions in Eos are asynchronous (any ODBC call which can return `SQL_STILL_EXECUTING`), 
+however some are guaranteed to return synchronously and are marked here with _(synchronous)_ 
+accordingly.
 
 ### Asynchronous execution
 
@@ -444,7 +448,7 @@ pass `undefined` for the `value` argument of `bindParameter`.
 
 ### Statement.setParameterName(parameterNumber, name) _(synchronous)_
 
-Sets the name for a bound parameter, using **SQLSetDescField** to set the _SQL_DESC_NAME_ on the input 
+Sets the name for a bound parameter, using **SQLSetDescField** to set the `SQL_DESC_NAME` on the input 
 parameter descriptor. You might want to use this to call stored procedures with named parameters, e.g.:
 
 ```js
