@@ -234,6 +234,9 @@ namespace Eos {
         static Persistent<Function> constructor_;
     };
 
+    void NextTick(Handle<Function> function, int argc, Handle<Value> argv[]);
+    void WeakCallback(Persistent<Value> ref, void *param);
+
     SQLSMALLINT GetSQLType(Handle<Value> jsValue);
     SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType);
     Handle<Value> ConvertToJS(SQLPOINTER buffer, SQLLEN indicator, SQLLEN bufferLength, SQLSMALLINT targetCType);

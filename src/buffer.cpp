@@ -28,7 +28,7 @@ namespace Eos {
         SQLLEN FillInputBuffer(SQLSMALLINT cType, Handle<Value> jsValue, SQLPOINTER buffer, SQLLEN length) {
             switch(cType) {
             case SQL_C_SLONG:
-                *reinterpret_cast<SQLINTEGER*>(buffer) = jsValue->IntegerValue();
+                *reinterpret_cast<SQLINTEGER*>(buffer) = static_cast<SQLINTEGER>(jsValue->IntegerValue());
                 return sizeof(SQLINTEGER);
 
             case SQL_C_DOUBLE:

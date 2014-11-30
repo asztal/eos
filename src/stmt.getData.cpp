@@ -44,6 +44,14 @@ namespace Eos {
             }
         }
 
+        ~GetDataOperation() {
+            EOS_DEBUG_METHOD();
+            if (!bufferHandle_.IsEmpty() && !bufferHandle_.IsWeak()) {
+                EOS_DEBUG(L"Warning! Buffer handle not released by GetDataOperation. (Memory held onto for longer than needed.)\n");
+                bufferHandle_.MakeWeak(nullptr, Eos::WeakCallback);
+            }
+        }
+
         static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
             EOS_DEBUG_METHOD();
 
@@ -96,15 +104,21 @@ namespace Eos {
             EOS_OPERATION_CONSTRUCTOR_RETURN();
         }
 
+        // Any new return statements added here should call MakeWeak() on bufferHandle_,
+        // if it is not empty.
         void CallbackOverride(SQLRETURN ret) {
             EOS_DEBUG_METHOD();
 
-            if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA)
+            if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA) {
+                if (!bufferHandle_.IsEmpty())
+                    bufferHandle_.MakeWeak(nullptr, Eos::WeakCallback);
                 return CallbackErrorOverride(ret);
+            }
 
             EOS_DEBUG(L"Final Result: %hi\n", ret);
 
             Handle<Value> argv[4];
+
             argv[0] = NanUndefined();
             if (totalLength_ != SQL_NO_TOTAL)
                 argv[2] = NanNew<Integer>(totalLength_);
@@ -129,6 +143,10 @@ namespace Eos {
                 if (argv[1]->IsUndefined())
                     argv[0] = OdbcError("Unable to interpret contents of result buffer");
             }
+
+            // Can we Dispose() things that JS-land is referencing? We'll soon find out!
+            if (!bufferHandle_.IsEmpty())
+                NanDisposePersistent(bufferHandle_);
             
             MakeCallback(argv);
         }

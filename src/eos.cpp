@@ -22,7 +22,10 @@ namespace Eos {
     }
 
     namespace {
+        Persistent<Function> nextTick;
+
         void InitError(Handle<Object> exports);
+        void InitCallbacks();
     }
 
     void Init(Handle<Object> exports) {
@@ -82,6 +85,7 @@ namespace Eos {
 #endif
 
         InitError(exports);
+        InitCallbacks();
     }
 
 #if defined(DEBUG)
@@ -352,12 +356,12 @@ namespace Eos {
 
             WStringValue file(frame->GetScriptNameOrSourceURL());
 
-	    // Work around 4-byte wchar and 2-byte SQLWCHAR on Linux
-	    std::wstring wfile;
-	    if (*file)
-	        for(int j = 0; j < file.length(); j++)
-		    wfile.push_back((*file)[j]);
-	    
+        // Work around 4-byte wchar and 2-byte SQLWCHAR on Linux
+        std::wstring wfile;
+        if (*file)
+            for(int j = 0; j < file.length(); j++)
+            wfile.push_back((*file)[j]);
+        
             int line = frame->GetLineNumber(), column = frame->GetColumn();
 
             fwprintf(stderr, L"  at %ls:%i:%i\n", *file ? wfile.c_str() : L"<unknown>", line, column);
@@ -466,7 +470,7 @@ namespace Eos {
         Local<Object> result;
 
         for (SQLINTEGER i = 0; i < nFields; i++) {
-	    SQLWCHAR state[5 + 1] = {0}, message[1024 + 1] = {0};
+        SQLWCHAR state[5 + 1] = {0}, message[1024 + 1] = {0};
             SQLSMALLINT messageLength;
 
             auto ret = SQLGetDiagRecW(
@@ -507,6 +511,38 @@ namespace Eos {
         return NanNew<String>(reinterpret_cast<const uint16_t*>(string), length);
     }
 
+    void WeakCallback(Persistent<Value> handle, void*) {
+        EOS_DEBUG_METHOD();
+        NanDisposePersistent(handle);
+    }
+
+#pragma region Callbacks
+    namespace {
+        // If anyone knows of a better way to do this, please tell me...
+        void InitCallbacks() {
+            EOS_DEBUG_METHOD();
+
+            NanScope();
+
+            auto code =
+                "function nextTick(args) {\
+                    var fn = this;\
+                    process.nextTick(function() {\
+                        fn.apply(this, args);\
+                    });\
+                 };\
+                 nextTick";
+
+            NanAssignPersistent(nextTick, Handle<Function>::Cast(Script::Compile(NanNew<String>(code))->Run()));
+
+            assert(!nextTick.IsEmpty());
+        }
+    }
+
+    void NextTick(Handle<Function> function, int argc, Handle<Value> argv[]) {
+        nextTick->Call(function, argc, argv);
+    }
+#pragma endregion
     
     SQLSMALLINT GetCTypeForSQLType(SQLSMALLINT sqlType) {
         switch(sqlType) {
@@ -630,14 +666,14 @@ namespace Eos {
 
         case SQL_C_CHAR:
             // Subtract one character iff buffer full, due to null terminator. The buffer length can be
-			// zero if the string was empty.
+            // zero if the string was empty.
             if (indicator > 0 && indicator == bufferLength)
                 --indicator;
             return NanNew<String>(reinterpret_cast<const char*>(buffer), indicator);
 
         case SQL_C_WCHAR:
             // Subtract one character iff buffer full, due to null terminator. The indicator can be zero
-			// if the string was empty.
+            // if the string was empty.
             assert(indicator % sizeof(SQLWCHAR) == 0);
             if (indicator > 0 && indicator == bufferLength)
                 indicator -= sizeof(SQLWCHAR);

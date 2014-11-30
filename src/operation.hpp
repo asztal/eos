@@ -267,7 +267,7 @@ namespace Eos {
             // using. If the driver does not support asynchronous operations, 
             // it will return SQL_ERROR with SQLSTATE S1118.
             if (result_ == SQL_ERROR) {
-	        SQLWCHAR state[6];
+            SQLWCHAR state[6];
 
                 // The documentation doesn't explicitly say that you can 
                 // pass nullptr instead of pointers to these.
@@ -307,6 +307,8 @@ namespace Eos {
         // Completed using asynchronous notifications
         void OnCompletedAsync() {
             EOS_DEBUG_METHOD_FMT(L"owner: 0x%p, operation: 0x%p", Owner(), this);
+
+            NanScope();
 
             auto retCA = SQLCompleteAsync(
                 TOwner::HandleType, 
@@ -371,7 +373,8 @@ namespace Eos {
             auto cb = GetCallback();
             Owner()->Unref();
             Unref();
-            NanMakeCallback(NanGetCurrentContext()->Global(), cb, argc, argv);
+            //NanMakeCallback(NanGetCurrentContext()->Global(), cb, argc, argv);
+            NextTick(cb, argc, argv);
         }
 
         // Convenience overload
