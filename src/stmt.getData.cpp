@@ -28,6 +28,8 @@ namespace Eos {
             cType_ = GetCTypeForSQLType(sqlType_);
 
             if (buffer_ == nullptr) {
+                assert(bufferHandle_.IsEmpty());
+
                 if (cType_ == SQL_C_BINARY 
                     || cType_ == SQL_C_WCHAR 
                     || cType_ == SQL_C_CHAR
@@ -46,9 +48,9 @@ namespace Eos {
 
         ~GetDataOperation() {
             EOS_DEBUG_METHOD();
-            if (!bufferHandle_.IsEmpty() && !bufferHandle_.IsWeak()) {
+            if (!bufferHandle_.IsEmpty()) {
                 EOS_DEBUG(L"Warning! Buffer handle not released by GetDataOperation. (Memory held onto for longer than needed.)\n");
-                bufferHandle_.MakeWeak(nullptr, Eos::WeakCallback);
+                NanDisposePersistent(bufferHandle_);
             }
         }
 
@@ -111,7 +113,7 @@ namespace Eos {
 
             if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA) {
                 if (!bufferHandle_.IsEmpty())
-                    bufferHandle_.MakeWeak(nullptr, Eos::WeakCallback);
+                    NanDisposePersistent(bufferHandle_);
                 return CallbackErrorOverride(ret);
             }
 

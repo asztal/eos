@@ -18,6 +18,9 @@ namespace Eos {
 #endif
         static const int HandleType = SQL_HANDLE_STMT;
 
+    protected:
+        void VirtualFree();
+
     public:
 
         static NAN_METHOD(New);

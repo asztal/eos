@@ -18,6 +18,10 @@ namespace Eos {
         ~EosHandle();
         
         NAN_METHOD(Free);
+    protected:
+        // In case the derived handle class needs to do some extra freeing.
+        virtual void VirtualFree() {}
+    public:
         SQLHANDLE GetHandle() const { return sqlHandle_; }
         SQLSMALLINT GetHandleType() const { return handleType_; }
         Handle<Value> GetLastError() { return Eos::GetLastError(handleType_, sqlHandle_); }

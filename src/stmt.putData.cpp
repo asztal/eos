@@ -7,14 +7,22 @@ using namespace Buffers;
 
 namespace Eos {
     struct PutDataOperation : Operation<Statement, PutDataOperation> {
-        PutDataOperation(Parameter* param, Handle<Object> bufferObject, SQLPOINTER buffer, SQLLEN indicator)
+        PutDataOperation(Parameter* param, Handle<Object> bufferObject, SQLPOINTER buffer, SQLLEN indicator, bool ownBuffer)
             : parameter_(param)
             , buffer_(buffer)
             , indicator_(indicator)
+            , ownBuffer_(ownBuffer)
         {
             EOS_DEBUG_METHOD();
 
             NanAssignPersistent(bufferObject_, bufferObject);
+        }
+
+        ~PutDataOperation() {
+            EOS_DEBUG_METHOD();
+
+            if (!bufferObject_.IsEmpty())
+                NanDisposePersistent(bufferObject_);
         }
 
         static EOS_OPERATION_CONSTRUCTOR(New, Statement) {
@@ -29,10 +37,12 @@ namespace Eos {
             auto param = Parameter::Unwrap(args[1].As<Object>());
             Handle<Object> bufferObject;
             SQLPOINTER buffer = nullptr;
+            bool ownBuffer = false;
             SQLLEN indicator = 0;
 
             if (JSBuffer::HasInstance(args[2])) {
                 bufferObject = args[2].As<Object>();
+                ownBuffer = true;
 
                 if (auto msg = JSBuffer::Unwrap(bufferObject, buffer, indicator))
                     return NanError(msg);
@@ -52,7 +62,7 @@ namespace Eos {
 
             param->Ref();
 
-            (new PutDataOperation(param, bufferObject, buffer, indicator))
+            (new PutDataOperation(param, bufferObject, buffer, indicator, ownBuffer))
                 ->Wrap(args.Holder());
 
             EOS_OPERATION_CONSTRUCTOR_RETURN();
@@ -62,6 +72,11 @@ namespace Eos {
             EOS_DEBUG_METHOD();
 
             parameter_->Unref();
+
+            // If the Parameter object was retrieved from the Parameter passed in, we don't need to 
+            // dispose the Buffer object because it is owned by the Parameter object.
+            if (ownBuffer_)
+                NanDisposePersistent(bufferObject_);
 
             if (!SQL_SUCCEEDED(ret) && ret != SQL_NO_DATA && ret != SQL_PARAM_DATA_AVAILABLE && ret != SQL_NEED_DATA)
                 return CallbackErrorOverride(ret);
@@ -91,6 +106,7 @@ namespace Eos {
 
     private:
         Parameter* parameter_;
+        bool ownBuffer_;
         SQLPOINTER buffer_;
         SQLLEN indicator_;
         Persistent<Object> bufferObject_;

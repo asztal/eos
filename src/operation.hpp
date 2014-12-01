@@ -28,6 +28,13 @@ namespace Eos {
 
         virtual ~IOperation() {
             EOS_DEBUG_METHOD();
+#if defined(DEBUG)
+            NanDisposePersistent(stackTrace_);
+#endif
+            if (!callback_.IsEmpty()) {
+                EOS_DEBUG(L"Operation callback not disposed. This should be done sooner.\n");
+                NanDisposePersistent(callback_);
+            }
         }
         
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
@@ -36,6 +43,10 @@ namespace Eos {
 
 #if defined(DEBUG)
         Handle<StackTrace> GetStackTrace() const {
+            // The stack trace is only disposed of when the IOperation is destructed, at which point
+            // there would be nothing to call GetStackTrace().
+            assert(!stackTrace_.IsEmpty());
+
             return NanNew(stackTrace_);
         }
 
@@ -90,6 +101,7 @@ namespace Eos {
         virtual void CallbackErrorOverride(SQLRETURN ret) = 0;
 
         Handle<Function> GetCallback() const {
+            assert(!callback_.IsEmpty()); // Shouldn't be calling the callback twice
             return NanNew(callback_);
         }
 
@@ -191,6 +203,11 @@ namespace Eos {
 
             DEBUG_ONLY(numberOfDestructedOperations++);
 
+            if (!owner_.IsEmpty()) {
+                EOS_DEBUG(L"Operation owner not disposed! You should do this earlier!\n");
+                owner_.Dispose();
+            }
+
             ownerPtr_ = nullptr;
             assert(begun_ && completed_);
         }
@@ -248,6 +265,7 @@ namespace Eos {
         }
 
         TOwner* Owner() { 
+            assert(!owner_.IsEmpty());
             assert(ownerPtr_);
             return ownerPtr_; 
         }
@@ -374,6 +392,8 @@ namespace Eos {
             Owner()->Unref();
             Unref();
             //NanMakeCallback(NanGetCurrentContext()->Global(), cb, argc, argv);
+            NanDisposePersistent(owner_);
+            NanDisposePersistent(callback_);
             NextTick(cb, argc, argv);
         }
 

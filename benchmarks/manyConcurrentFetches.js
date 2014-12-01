@@ -1,9 +1,18 @@
 var eos = require("../")
+var heapdump = require("heapdump")
+var counter = 0
 
 module.exports = function manyConcurrentFetches(conn, callback) {
     var stmt = conn.newStatement()
 
     stmt.bindParameter(1, eos.SQL_PARAM_INPUT, eos.SQL_INTEGER, 0, 0, Math.floor(Math.random() * 2048))
+
+    if (counter++ % 100 == 0) {
+        if (global.gc) {
+            global.gc()
+            heapdump.writeSnapshot("heapdump-" + counter + ".heapsnapshot")
+        }
+    }
 
     function fail(err) {
         stmt.cancel()
@@ -45,4 +54,4 @@ module.exports = function manyConcurrentFetches(conn, callback) {
 }
 
 module.exports.limit = 1
-module.exports.times = 100
+module.exports.times = 1000000

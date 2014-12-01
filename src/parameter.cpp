@@ -273,6 +273,9 @@ NAN_SETTER(Parameter::SetValue) {
 
 Parameter::~Parameter() {
     EOS_DEBUG_METHOD();
+
+    if (!bufferObject_.IsEmpty())
+        NanDisposePersistent(bufferObject_);
 }
 
 namespace { ClassInitializer<Parameter> init; } 

@@ -412,14 +412,20 @@ NAN_METHOD(Statement::CloseCursor) {
     NanReturnUndefined();
 }
 
+void Statement::VirtualFree() {
+    EOS_DEBUG_METHOD();
+
+    if (!boundParameters_.IsEmpty())
+        NanDisposePersistent(boundParameters_);
+
+    if (!boundColumns_.IsEmpty())
+        NanDisposePersistent(boundColumns_);
+}
+
 Statement::~Statement() {
     EOS_DEBUG_METHOD();
 	
-	if (!boundParameters_.IsEmpty())
-		NanDisposePersistent(boundParameters_);
-	
-	if (!boundColumns_.IsEmpty())
-		NanDisposePersistent(boundColumns_);
+    VirtualFree();
 }
 
 #if defined(EOS_ENABLE_ASYNC_NOTIFICATIONS)
