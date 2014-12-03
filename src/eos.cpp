@@ -525,8 +525,8 @@ namespace Eos {
             NanScope();
 
             auto code =
-                "function nextTick(args) {\
-                    var fn = this;\
+                "function nextTick() {\
+                    var fn = this, args = arguments;\
                     process.nextTick(function() {\
                         fn.apply(this, args);\
                     });\
