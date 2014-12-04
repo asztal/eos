@@ -167,7 +167,14 @@ const char* Parameter::Marshal(
             buffer = nullptr;
             length = 0;
             indicator = SQL_NULL_DATA;
-        } else if(handle.IsEmpty()) {
+        } else if (cType == SQL_C_BINARY && handle.IsEmpty() && JSBuffer::HasInstance(jsValue)) {
+            handle = jsValue.As<Object>();
+
+            if (auto msg = JSBuffer::Unwrap(handle, buffer, length))
+                return msg;
+
+            indicator = length;
+        } else if (handle.IsEmpty()) {
             // It's an input parameter, and we have a value.
             if (!AllocateBoundInputParameter(cType, jsValue, buffer, length, handle))
                 return "Cannot allocate buffer for bound input or input/output parameter";
