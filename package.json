@@ -1,8 +1,8 @@
 {
   "name": "eos",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "author": "lee@asztal.net",
-  "description": "a truly asynchronous ODBC library for node.js",
+  "description": "A truly asynchronous ODBC library for node.js",
   "scripts": {
     "configure": "node-gyp configure",
     "build": "node-gyp build",
