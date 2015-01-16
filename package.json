@@ -1,6 +1,6 @@
 {
   "name": "eos",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": "lee@asztal.net",
   "description": "A truly asynchronous ODBC library for node.js",
   "scripts": {
