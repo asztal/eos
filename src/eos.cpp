@@ -716,7 +716,7 @@ namespace Eos {
     Handle<Object> JSBuffer::New(size_t length) {
         assert(length <= INT_MAX);
 
-        Handle<Value> argv[] = { NanNew<Integer>(length) };
+        Handle<Value> argv[] = { NanNew<Number>(length) };
         return Constructor()->NewInstance(1, argv);
     }
 
@@ -765,7 +765,7 @@ namespace Eos {
         assert (slice->IsFunction() && "The passed buffer object does not have a 'slice' function");
 
         auto sliceFn = Local<Function>::Cast(slice);
-        Local<Value> argv[] = { NanNew<Integer>(offset), NanNew<Integer>(length) };
+        Local<Value> argv[] = { NanNew<Number>(offset), NanNew<Number>(length) };
         auto result = sliceFn->Call(buffer, 2, argv);
 
         assert(result->IsObject() && "The result of slice() is not an object");

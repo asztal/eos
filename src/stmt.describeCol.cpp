@@ -41,7 +41,7 @@ namespace Eos {
                 NanUndefined(),
                 StringFromTChar(columnName_, min<SQLSMALLINT>(maxColumnNameLength, columnNameLength_)),
                 NanNew<Integer>(dataType_),
-                NanNew<Integer>(columnSize_),
+                NanNew<Number>(columnSize_),
                 NanNew<Integer>(decimalDigits_),
                 NanUndefined()
             };

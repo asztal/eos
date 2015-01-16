@@ -75,7 +75,7 @@ NAN_SETTER(Parameter::SetBuffer) {
 }
 
 NAN_GETTER(Parameter::GetBufferLength) const {
-    EosMethodReturnValue(NanNew<Integer>(length_));
+    EosMethodReturnValue(NanNew<Number>(length_));
 }
 
 NAN_GETTER(Parameter::GetBytesInBuffer) const {
@@ -85,7 +85,7 @@ NAN_GETTER(Parameter::GetBytesInBuffer) const {
     if (indicator_ == SQL_NULL_DATA)
         NanReturnNull();
 
-    EosMethodReturnValue(NanNew<Integer>(BytesInBuffer()));
+    EosMethodReturnValue(NanNew<Number>(BytesInBuffer()));
 }
 
 NAN_SETTER(Parameter::SetBytesInBuffer) {

@@ -123,7 +123,7 @@ namespace Eos {
 
             argv[0] = NanUndefined();
             if (totalLength_ != SQL_NO_TOTAL)
-                argv[2] = NanNew<Integer>(totalLength_);
+                argv[2] = NanNew<Number>(totalLength_);
             else
                 argv[2] = NanUndefined();
             argv[3] = NanNew<Boolean>(totalLength_ > bufferLength_ || (totalLength_ == SQL_NO_TOTAL && ret == SQL_SUCCESS_WITH_INFO));
