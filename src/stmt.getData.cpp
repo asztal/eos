@@ -75,13 +75,16 @@ namespace Eos {
             bool raw;
             bool ownBuffer;
 
+#if !defined(NODE_12)
             if (args[3]->IsObject() && args[3].As<Object>()->GetConstructor()->Equals(JSBuffer::Constructor())) {
                 bufferHandle = args[3].As<Object>();
                 
                 auto msg = JSBuffer::Unwrap(bufferHandle, buffer, bufferLength);
                 if (msg)
                     return NanError(msg);
-            } else if (args[3]->IsObject() && Buffer::HasInstance(args[3])) {
+            } else 
+#endif
+            if (args[3]->IsObject() && Buffer::HasInstance(args[3])) {
                 buffer = Buffer::Data(args[3]);
                 bufferLength = Buffer::Length(args[3]);
                 ownBuffer = false;

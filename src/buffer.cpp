@@ -152,8 +152,12 @@ namespace Eos {
 
             case SQL_C_BINARY:
                 if (Buffer::HasInstance(jsValue) 
+#if !defined (NODE_12)
                     || (jsValue->IsObject() 
+                        && node::Buffer::
                         && JSBuffer::Constructor()->StrictEquals(jsValue.As<Object>()->GetConstructor()))) 
+#endif
+                   )
                 {
                     handle = jsValue.As<Object>();
                     if(JSBuffer::Unwrap(handle, buffer, length))

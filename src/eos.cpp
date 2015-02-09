@@ -69,19 +69,9 @@ namespace Eos {
         NODE_DEFINE_CONSTANT(exports, SQL_GUID);
 
 #if defined(DEBUG)
-        exports->Set(
-            NanSymbol("debugActiveOperations"), 
-            NanNew<FunctionTemplate, NanFunctionCallback>(&IOperation::DebugActiveOperations)->GetFunction(), 
-            (PropertyAttribute)(ReadOnly | DontDelete));
-        auto x = 
-        exports->Set(
-            NanSymbol("activeOperations"), 
-            NanNew<FunctionTemplate, NanFunctionCallback>(&IOperation::GetActiveOperations)->GetFunction(), 
-            (PropertyAttribute)(ReadOnly | DontDelete));
-        exports->Set(
-            NanSymbol("activeHandles"), 
-            NanNew<FunctionTemplate, NanFunctionCallback>(&EosHandle::GetActiveHandles)->GetFunction(), 
-            (PropertyAttribute)(ReadOnly | DontDelete));
+        exports->Set(NanSymbol("debugActiveOperations"), NanNew<FunctionTemplate>(&IOperation::DebugActiveOperations)->GetFunction());
+        exports->Set(NanSymbol("activeOperations"), NanNew<FunctionTemplate>(&IOperation::GetActiveOperations)->GetFunction());
+        exports->Set(NanSymbol("activeHandles"), NanNew<FunctionTemplate>(&EosHandle::GetActiveHandles)->GetFunction());
 #endif
 
         InitError(exports);
@@ -399,7 +389,7 @@ namespace Eos {
 
             NanAssignPersistent(odbcErrorConstructor, Handle<Function>::Cast(Script::Compile(NanNew<String>(code))->Run()));
 
-            exports->Set(NanSymbol("OdbcError"), NanNew(odbcErrorConstructor), ReadOnly);
+            exports->Set(NanSymbol("OdbcError"), NanNew(odbcErrorConstructor) IF_NODE_12(, EOS_COMMA ReadOnly));
         }
     }
 
@@ -540,7 +530,7 @@ namespace Eos {
     }
 
     void NextTick(Handle<Function> function, int argc, Handle<Value> argv[]) {
-        nextTick->Call(function, argc, argv);
+        NanNew(nextTick)->Call(function, argc, argv);
     }
 #pragma endregion
     
@@ -710,7 +700,11 @@ namespace Eos {
     }
     
     bool JSBuffer::HasInstance(Handle<Object> value) {
+#if defined (NODE_12)
+        return node::Buffer::HasInstance(value);
+#else
         return value->GetConstructor()->StrictEquals(JSBuffer::Constructor());
+#endif
     }
 
     Handle<Object> JSBuffer::New(size_t length) {

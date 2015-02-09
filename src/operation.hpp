@@ -205,7 +205,7 @@ namespace Eos {
 
             if (!owner_.IsEmpty()) {
                 EOS_DEBUG(L"Operation owner not disposed! You should do this earlier!\n");
-                owner_.Dispose();
+                NanDisposePersistent(owner_);
             }
 
             ownerPtr_ = nullptr;

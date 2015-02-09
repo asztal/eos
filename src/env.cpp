@@ -12,8 +12,8 @@ void Eos::Environment::Init(Handle<Object> exports) {
     EOS_SET_METHOD(Constructor(), "newConnection", Environment, NewConnection, sig0);
     EOS_SET_METHOD(Constructor(), "dataSources", Environment, DataSources, sig0);
     EOS_SET_METHOD(Constructor(), "drivers", Environment, Drivers, sig0);
-
-    exports->Set(NanSymbol("Environment"), Constructor()->GetFunction(), ReadOnly);
+    
+    exports->Set(NanSymbol("Environment"), Constructor()->GetFunction() IF_NODE_12(, EOS_COMMA ReadOnly));
 }
 
 Eos::Environment::Environment(SQLHENV hEnv) 
