@@ -389,7 +389,7 @@ namespace Eos {
 
             NanAssignPersistent(odbcErrorConstructor, Handle<Function>::Cast(Script::Compile(NanNew<String>(code))->Run()));
 
-            exports->Set(NanSymbol("OdbcError"), NanNew(odbcErrorConstructor) IF_NODE_12(, EOS_COMMA ReadOnly));
+            exports->Set(NanSymbol("OdbcError"), NanNew(odbcErrorConstructor) IF_NODE_12(EOS_COMMA ReadOnly));
         }
     }
 

@@ -11,7 +11,7 @@ void Parameter::Init(Handle<Object> exports) {
     Constructor()->SetClassName(NanSymbol("Parameter"));
     Constructor()->InstanceTemplate()->SetInternalFieldCount(1);
 
-    auto sig0 = NanNew<Signature>(Constructor(), 0, nullptr);
+    auto sig0 = NanNew<Signature>(Constructor());
 
     EOS_SET_ACCESSOR(Constructor(), "value", Parameter, GetValue, SetValue);
     EOS_SET_ACCESSOR(Constructor(), "bytesInBuffer", Parameter, GetBytesInBuffer, SetBytesInBuffer);
